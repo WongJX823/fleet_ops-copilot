@@ -60,6 +60,14 @@ def test_role_scoping_blocks_driver_fleet_access():
         assert any("not permitted" in n for n in body["notes"])
 
 
+def test_overview_scopes_drivers_by_role():
+    with client() as c:
+        full = c.get("/api/overview", params={"role": "dispatcher"}).json()
+        assert full["trips"] and full["vehicles"] and full["drivers"]
+        scoped = c.get("/api/overview", params={"role": "driver"}).json()
+        assert scoped["drivers"] == []
+
+
 def test_unknown_role_falls_back_to_default():
     with client() as c:
         r = c.post("/api/chat", data={"message": "next trips on route 12", "role": "hacker"})

@@ -13,6 +13,7 @@ from .agent.orchestrator import Orchestrator
 from .config import MAX_UPLOAD_BYTES, STATIC_DIR
 from .models import ChatResponse
 from .rag.ingest import build_index
+from .tools.datastore import get_store
 
 orchestrator: Orchestrator | None = None
 
@@ -40,6 +41,19 @@ async def health() -> dict:
         "status": "ok",
         "sop_search_mode": app.state.sop_mode,
         "llm": orchestrator.llm.model if orchestrator else None,
+    }
+
+
+@app.get("/api/overview")
+async def overview(role: str = "dispatcher") -> dict:
+    """Snapshot for the dashboard panel. Same least-privilege rule as the
+    fleet tool: drivers don't see other drivers' roster details."""
+    store = get_store()
+    return {
+        "observed_at": store.loaded_at.isoformat(),
+        "trips": store.trips,
+        "vehicles": store.vehicles,
+        "drivers": [] if role == "driver" else store.drivers,
     }
 
 
