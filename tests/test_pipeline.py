@@ -72,3 +72,49 @@ def test_unknown_role_falls_back_to_default():
     with client() as c:
         r = c.post("/api/chat", data={"message": "next trips on route 12", "role": "hacker"})
         assert r.json()["role"] == "dispatcher"
+
+
+def test_conversation_history_reaches_llm():
+    history = (
+        '[{"role":"user","content":"Why is route 18 delayed?"},'
+        '{"role":"assistant","content":"Road works, +20 min."}]'
+    )
+    with client() as c:
+        r = c.post(
+            "/api/chat",
+            data={"message": "What about route 12?", "role": "dispatcher", "history": history},
+        )
+        assert "2 prior message(s)" in r.json()["answer"]  # stub echoes history length
+
+
+def test_malformed_history_is_ignored():
+    with client() as c:
+        r = c.post(
+            "/api/chat",
+            data={"message": "next trips", "role": "dispatcher", "history": '{"role":"system"}'},
+        )
+        assert r.status_code == 200
+        assert "0 prior message(s)" in r.json()["answer"]
+
+
+def test_video_upload_extracts_frames(tmp_path):
+    import pytest
+
+    cv2 = pytest.importorskip("cv2")
+    import numpy as np
+
+    path = tmp_path / "clip.mp4"
+    w = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"mp4v"), 5, (64, 64))
+    for i in range(10):
+        w.write(np.full((64, 64, 3), i * 20, np.uint8))
+    w.release()
+
+    with client() as c, path.open("rb") as f:
+        r = c.post(
+            "/api/chat",
+            data={"message": "What does this clip show about the vehicle?", "role": "dispatcher"},
+            files={"files": ("clip.mp4", f, "video/mp4")},
+        )
+    body = r.json()
+    assert any("Video sampled into" in n for n in body["notes"]), body["notes"]
+    assert "3 attached image(s)/frame(s)" in body["answer"]

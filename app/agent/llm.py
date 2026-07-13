@@ -19,10 +19,16 @@ class LLMClient:
 
             self._client = OpenAI()
 
-    def answer(self, packed_prompt: str, images: list[tuple[str, bytes]]) -> str:
-        """images: list of (mime_type, raw_bytes) already reduced to stills."""
+    def answer(
+        self,
+        packed_prompt: str,
+        images: list[tuple[str, bytes]],
+        history: list[dict] | None = None,
+    ) -> str:
+        """images: list of (mime_type, raw_bytes) already reduced to stills.
+        history: prior turns as [{"role": "user"|"assistant", "content": str}]."""
         if self._client is None:
-            return _stub_answer(packed_prompt, len(images))
+            return _stub_answer(packed_prompt, len(images), len(history or []))
 
         content: list[dict] = [{"type": "text", "text": packed_prompt}]
         for mime, raw in images:
@@ -30,12 +36,12 @@ class LLMClient:
             content.append(
                 {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
             )
+        messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(history or [])
+        messages.append({"role": "user", "content": content})
         resp = self._client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": content},
-            ],
+            messages=messages,
             temperature=0.2,
         )
         return resp.choices[0].message.content or ""
@@ -76,9 +82,10 @@ def extract_video_frames(raw: bytes, suffix: str) -> tuple[list[tuple[str, bytes
         tmp.unlink(missing_ok=True)
 
 
-def _stub_answer(packed_prompt: str, image_count: int) -> str:
+def _stub_answer(packed_prompt: str, image_count: int, history_len: int) -> str:
     lines = [
         "(Stub LLM - set OPENAI_API_KEY for real answers.)",
+        f"Conversation history: {history_len} prior message(s).",
         "I received your question and the following governed evidence was retrieved:",
     ]
     for ln in packed_prompt.splitlines():

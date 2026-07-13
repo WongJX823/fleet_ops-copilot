@@ -17,11 +17,11 @@ Update checkboxes as items land.
 
 ## Next up (finish Phase 2 — read-only MVP)
 
-- [ ] Commit the scaffold and push to GitHub
-- [ ] Set `OPENAI_API_KEY` in `.env` and verify real grounded answers (text + image)
-- [ ] Install `opencv-python-headless` and verify video frame extraction end-to-end
+- [x] Commit the scaffold and push to GitHub
+- [x] Set `OPENAI_API_KEY` in `.env` and verify real grounded answers (text + image)
+- [x] Install `opencv-python-headless` and verify video frame extraction end-to-end
 - [ ] Real intent classification (LLM-based or embedding classifier) to replace keyword matching
-- [ ] Conversation memory: pass recent turns to the LLM so follow-up questions work
+- [x] Conversation memory: pass recent turns to the LLM so follow-up questions work
 - [ ] Persist the SOP vector index to disk instead of re-embedding on every startup
 - [ ] Real authentication (login/session) instead of the role dropdown
 - [ ] Evaluation set: normal, ambiguous, stale-data, and failure cases (report Section 16)

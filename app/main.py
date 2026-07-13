@@ -57,10 +57,34 @@ async def overview(role: str = "dispatcher") -> dict:
     }
 
 
+MAX_HISTORY_TURNS = 8
+
+
+def _parse_history(raw: str) -> list[dict]:
+    """Validate client-sent history: only user/assistant roles, text only,
+    capped length so the prompt cannot be flooded."""
+    import json
+
+    try:
+        items = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    history = []
+    for it in items if isinstance(items, list) else []:
+        if (
+            isinstance(it, dict)
+            and it.get("role") in ("user", "assistant")
+            and isinstance(it.get("content"), str)
+        ):
+            history.append({"role": it["role"], "content": it["content"][:4000]})
+    return history[-MAX_HISTORY_TURNS:]
+
+
 @app.post("/api/chat")
 async def chat(
     message: str = Form(...),
     role: str = Form("dispatcher"),
+    history: str = Form("[]"),
     files: list[UploadFile] = File(default=[]),
 ) -> ChatResponse:
     if not message.strip():
@@ -85,4 +109,4 @@ async def chat(
         else:
             notes.append(f"Attachment '{f.filename}' has unsupported type '{ctype}' and was skipped.")
 
-    return orchestrator.handle(message, role, images, notes)
+    return orchestrator.handle(message, role, images, notes, _parse_history(history))

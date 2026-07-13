@@ -44,6 +44,7 @@ class Orchestrator:
         role: str | None,
         images: list[tuple[str, bytes]],
         notes: list[str],
+        history: list[dict] | None = None,
     ) -> ChatResponse:
         role = role if role in ROLE_TOOLS else DEFAULT_ROLE
         allowed = ROLE_TOOLS[role]
@@ -73,7 +74,7 @@ class Orchestrator:
         if notes:
             packed += "\n\nOperational notes (mention these to the user):\n- " + "\n- ".join(notes)
 
-        answer = self.llm.answer(packed, images)
+        answer = self.llm.answer(packed, images, history)
 
         response = ChatResponse(
             answer=answer,

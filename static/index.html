@@ -153,6 +153,7 @@ const $ = id => document.getElementById(id);
 const chat = $('chat'), form = $('f'), msgEl = $('msg'), filesEl = $('files'),
       previews = $('previews'), sendBtn = $('send'), roleEl = $('role');
 let attachments = [];
+let transcript = [];   // [{role:'user'|'assistant', content}] sent as conversation memory
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const badge = s => `<span class="badge b-${esc(s)}">${esc(s.replace('_',' '))}</span>`;
@@ -258,7 +259,9 @@ form.addEventListener('submit', async (e) => {
   const fd = new FormData();
   fd.append('message', text);
   fd.append('role', roleEl.value);
+  fd.append('history', JSON.stringify(transcript.slice(-8)));
   for (const f of attachments) fd.append('files', f);
+  transcript.push({role: 'user', content: text});
   msgEl.value = ''; attachments = []; renderPreviews();
   sendBtn.disabled = true;
   const pending = addMsg('bot', '<i>thinking…</i>');
@@ -278,6 +281,7 @@ form.addEventListener('submit', async (e) => {
     html += `<div class="meta">intent: ${data.intent.join(', ')} · role: ${data.role} · model: ${data.model}</div>`;
     pending.innerHTML = html;
     if (data.escalated) pending.classList.add('escalated');
+    transcript.push({role: 'assistant', content: data.answer});
   } catch (err) {
     pending.innerHTML = '⚠ ' + esc(String(err));
     pending.classList.add('escalated');
