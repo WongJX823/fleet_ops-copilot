@@ -20,6 +20,7 @@ def test_health():
         assert body["status"] == "ok"
         assert body["llm"] == "stub"
         assert body["sop_search_mode"] == "keyword"
+        assert body["intent_mode"] == "keyword"
 
 
 def test_schedule_question_returns_grounded_evidence():
@@ -95,6 +96,19 @@ def test_malformed_history_is_ignored():
         )
         assert r.status_code == 200
         assert "0 prior message(s)" in r.json()["answer"]
+
+
+def test_keyword_intent_fallback():
+    from app.agent.intent import keyword_classify
+
+    assert keyword_classify("Why is route 18 delayed?") == ["schedule_lookup"]
+    assert keyword_classify("Which vehicles are available?") == ["fleet_status"]
+    assert keyword_classify("What is the approved breakdown procedure?") == [
+        "fleet_status",
+        "sop_search",
+    ]
+    # nothing matches -> defaults to sop_search so the agent always has evidence
+    assert keyword_classify("hello there") == ["sop_search"]
 
 
 def test_video_upload_extracts_frames(tmp_path):

@@ -10,33 +10,20 @@ from ..config import DEFAULT_ROLE, ROLE_TOOLS
 from ..models import ChatResponse, Evidence
 from ..rag.index import SopIndex
 from ..tools import registry
+from .intent import IntentClassifier
 from .llm import LLMClient
 from .prompts import ANSWER_TEMPLATE
-
-SCHEDULE_WORDS = {"trip", "trips", "route", "schedule", "depart", "departure", "delay", "delayed", "cancel", "cancelled", "next", "arrival", "late"}
-FLEET_WORDS = {"vehicle", "vehicles", "bus", "driver", "drivers", "available", "availability", "replacement", "cover", "standby", "breakdown", "maintenance"}
-SOP_WORDS = {"sop", "procedure", "policy", "approved", "steps", "step", "allowed", "rule", "rules", "should", "how", "what"}
 
 
 class Orchestrator:
     def __init__(self, sop_index: SopIndex):
         self.llm = LLMClient()
+        self.classifier = IntentClassifier()
         self.tools = {
             "schedule_lookup": registry.schedule_lookup,
             "fleet_status": registry.fleet_status,
             "sop_search": registry.make_sop_search(sop_index),
         }
-
-    def classify_intent(self, question: str) -> list[str]:
-        words = set(question.lower().split())
-        intents = []
-        if words & SCHEDULE_WORDS:
-            intents.append("schedule_lookup")
-        if words & FLEET_WORDS:
-            intents.append("fleet_status")
-        if words & SOP_WORDS or not intents:
-            intents.append("sop_search")
-        return intents
 
     def handle(
         self,
@@ -48,7 +35,7 @@ class Orchestrator:
     ) -> ChatResponse:
         role = role if role in ROLE_TOOLS else DEFAULT_ROLE
         allowed = ROLE_TOOLS[role]
-        intents = self.classify_intent(question)
+        intents, intent_mode = self.classifier.classify(question, history)
 
         evidence: list[Evidence] = []
         for tool_name in intents:
@@ -91,6 +78,7 @@ class Orchestrator:
                 "role": role,
                 "question": question,
                 "intents": intents,
+                "intent_mode": intent_mode,
                 "tools_used": [e.source for e in evidence],
                 "stale_sources": stale,
                 "image_count": len(images),

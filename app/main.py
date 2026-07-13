@@ -40,6 +40,7 @@ async def health() -> dict:
     return {
         "status": "ok",
         "sop_search_mode": app.state.sop_mode,
+        "intent_mode": orchestrator.classifier.mode if orchestrator else None,
         "llm": orchestrator.llm.model if orchestrator else None,
     }
 

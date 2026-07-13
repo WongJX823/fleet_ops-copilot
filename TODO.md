@@ -20,7 +20,7 @@ Update checkboxes as items land.
 - [x] Commit the scaffold and push to GitHub
 - [x] Set `OPENAI_API_KEY` in `.env` and verify real grounded answers (text + image)
 - [x] Install `opencv-python-headless` and verify video frame extraction end-to-end
-- [ ] Real intent classification (LLM-based or embedding classifier) to replace keyword matching
+- [x] Real intent classification (LLM-based, keyword fallback offline)
 - [x] Conversation memory: pass recent turns to the LLM so follow-up questions work
 - [ ] Persist the SOP vector index to disk instead of re-embedding on every startup
 - [ ] Real authentication (login/session) instead of the role dropdown
