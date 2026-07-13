@@ -8,40 +8,92 @@
   :root {
     --navy: #0B2545; --blue: #2E74B5; --blue-bg: #E8F2FA;
     --amber: #D9A441; --amber-bg: #FFF8E8; --green: #2F855A; --green-bg: #EDF8F1;
-    --red: #9B1C1C; --red-bg: #FDEEEE;
+    --red: #9B1C1C; --red-bg: #FDEEEE; --line: #d6dee8;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #f4f6f9; color: var(--navy); display: flex; flex-direction: column; height: 100vh; }
-  header { background: var(--navy); color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  header h1 { font-size: 18px; margin: 0; flex: 1; }
-  header select { padding: 6px 10px; border-radius: 6px; border: none; font-size: 14px; }
-  #status { font-size: 12px; opacity: .8; }
-  #chat { flex: 1; overflow-y: auto; padding: 20px; max-width: 900px; width: 100%; margin: 0 auto; }
-  .msg { margin-bottom: 16px; max-width: 85%; padding: 12px 14px; border-radius: 12px; white-space: pre-wrap; line-height: 1.45; }
-  .user { background: var(--blue); color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
-  .bot  { background: #fff; border: 1px solid #d6dee8; border-bottom-left-radius: 4px; }
+  html, body { height: 100%; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; font-size: 13px;
+         background: #f4f6f9; color: var(--navy); display: flex; flex-direction: column; }
+
+  header { background: var(--navy); color: #fff; padding: 6px 14px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 15px; margin: 0; flex: 1; white-space: nowrap; }
+  header h1 span { font-weight: 400; opacity: .65; font-size: 12px; }
+  header select { padding: 3px 8px; border-radius: 5px; border: none; font-size: 12px; }
+  #status { font-size: 11px; opacity: .75; }
+
+  main { flex: 1; display: grid; grid-template-columns: 360px 1fr; min-height: 0; }
+
+  /* ---------- overview panel ---------- */
+  #panel { border-right: 1px solid var(--line); background: #fff; overflow-y: auto; padding: 10px 12px; }
+  #panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #6b7a90;
+              margin: 12px 0 5px; display: flex; align-items: center; gap: 6px; }
+  #panel h2:first-child { margin-top: 0; }
+  #panel h2 .cnt { background: var(--blue-bg); color: var(--blue); border-radius: 999px; padding: 0 7px; font-size: 10px; }
+  #refresh { margin-left: auto; cursor: pointer; border: none; background: none; font-size: 13px; color: var(--blue); }
+  #obs { font-size: 10px; color: #6b7a90; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 3px 4px; text-align: left; font-size: 12px; border-bottom: 1px solid #eef2f6; }
+  th { font-size: 10px; color: #6b7a90; font-weight: 600; }
+  tr.click { cursor: pointer; }
+  tr.click:hover { background: var(--blue-bg); }
+
+  .badge { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+  .b-on_time     { background: var(--green-bg); color: var(--green); }
+  .b-delayed     { background: var(--amber-bg); color: #8a6414; }
+  .b-cancelled   { background: var(--red-bg); color: var(--red); }
+  .b-available   { background: var(--green-bg); color: var(--green); }
+  .b-in_service  { background: var(--blue-bg); color: var(--blue); }
+  .b-maintenance { background: var(--red-bg); color: var(--red); }
+  .b-on_duty     { background: var(--blue-bg); color: var(--blue); }
+  .b-standby     { background: var(--green-bg); color: var(--green); }
+  .b-off_duty    { background: #eef1f5; color: #6b7a90; }
+
+  /* ---------- chat ---------- */
+  #chatwrap { display: flex; flex-direction: column; min-height: 0; }
+  #chat { flex: 1; overflow-y: auto; padding: 12px 16px; }
+  .msg { margin-bottom: 10px; max-width: 88%; padding: 8px 11px; border-radius: 10px;
+         white-space: pre-wrap; line-height: 1.4; }
+  .user { background: var(--blue); color: #fff; margin-left: auto; border-bottom-right-radius: 3px; }
+  .bot  { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 3px; }
   .bot.escalated { border-color: var(--red); background: var(--red-bg); }
-  .evidence { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { font-size: 11px; background: var(--green-bg); border: 1px solid var(--green); color: var(--navy); border-radius: 999px; padding: 2px 10px; }
+  .evidence { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font-size: 10px; background: var(--green-bg); border: 1px solid var(--green);
+          border-radius: 999px; padding: 1px 8px; }
   .chip.stale { background: var(--red-bg); border-color: var(--red); }
-  .note { font-size: 12px; color: var(--red); margin-top: 6px; }
-  .meta { font-size: 11px; color: #6b7a90; margin-top: 8px; }
-  .msg img, .msg video { max-width: 220px; border-radius: 8px; display: block; margin-top: 8px; }
-  form { background: #fff; border-top: 1px solid #d6dee8; padding: 12px 20px; }
-  .formrow { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
-  textarea { flex: 1; resize: none; border: 1px solid #c3ceda; border-radius: 10px; padding: 10px 12px; font: inherit; min-height: 44px; max-height: 140px; }
-  button, label.attach { background: var(--blue); color: #fff; border: none; border-radius: 10px; padding: 11px 18px; font-size: 14px; cursor: pointer; }
-  label.attach { background: #e8eef5; color: var(--navy); border: 1px solid #c3ceda; }
-  button:disabled { opacity: .5; cursor: wait; }
-  #previews { max-width: 900px; margin: 0 auto 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .note { font-size: 11px; color: var(--red); margin-top: 4px; }
+  .meta { font-size: 10px; color: #6b7a90; margin-top: 5px; }
+  .msg img, .msg video { max-width: 180px; border-radius: 6px; display: block; margin-top: 6px; }
+
+  #quick { display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 16px 0; }
+  .qbtn { font-size: 11px; background: #fff; border: 1px solid var(--line); color: var(--navy);
+          border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .qbtn:hover { background: var(--blue-bg); border-color: var(--blue); }
+
+  form { background: #fff; border-top: 1px solid var(--line); padding: 8px 16px; }
+  .formrow { display: flex; gap: 8px; align-items: flex-end; }
+  textarea { flex: 1; resize: none; border: 1px solid #c3ceda; border-radius: 8px;
+             padding: 7px 10px; font: inherit; min-height: 34px; max-height: 110px; }
+  button.send, label.attach { background: var(--blue); color: #fff; border: none; border-radius: 8px;
+             padding: 8px 14px; font-size: 12px; cursor: pointer; }
+  label.attach { background: #eef1f5; color: var(--navy); border: 1px solid #c3ceda; }
+  button.send:disabled { opacity: .5; cursor: wait; }
+  #previews { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
   #previews .pv { position: relative; }
-  #previews img, #previews video { height: 64px; border-radius: 8px; border: 1px solid #c3ceda; }
-  #previews .x { position: absolute; top: -6px; right: -6px; background: var(--red); color: #fff; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; line-height: 18px; text-align: center; cursor: pointer; }
+  #previews img, #previews video { height: 48px; border-radius: 6px; border: 1px solid #c3ceda; }
+  #previews .x { position: absolute; top: -5px; right: -5px; background: var(--red); color: #fff;
+                 border-radius: 50%; width: 15px; height: 15px; font-size: 10px; line-height: 15px;
+                 text-align: center; cursor: pointer; }
+
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 240px 1fr; }
+    #panel { border-right: none; border-bottom: 1px solid var(--line); }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>Fleet Ops Copilot <span style="font-weight:400;opacity:.7">read-only MVP</span></h1>
+  <h1>Fleet Ops Copilot <span>read-only MVP</span></h1>
   <label>Role:
     <select id="role">
       <option value="dispatcher">Dispatcher</option>
@@ -50,45 +102,120 @@
       <option value="manager">Operations Manager</option>
     </select>
   </label>
-  <span id="status">connecting...</span>
+  <span id="status">connecting…</span>
 </header>
 
-<div id="chat">
-  <div class="msg bot">Hello! Ask me about schedules, delays, vehicle availability, or approved procedures.
-Try: <i>"Why is route 18 delayed and what is the approved next step?"</i>
-You can also attach a photo or short video (e.g. of a fault or blocked road).</div>
-</div>
+<main>
+  <aside id="panel">
+    <h2>Trips <span class="cnt" id="tripCnt">–</span>
+      <button id="refresh" title="Refresh overview">⟳</button></h2>
+    <div id="obs"></div>
+    <table id="trips"><thead>
+      <tr><th>Route</th><th>To</th><th>Departs</th><th>Status</th></tr>
+    </thead><tbody></tbody></table>
 
-<form id="f">
-  <div id="previews"></div>
-  <div class="formrow">
-    <label class="attach">📎 Attach
-      <input id="files" type="file" accept="image/*,video/*" multiple hidden>
-    </label>
-    <textarea id="msg" placeholder="Ask about schedules, vehicles, drivers, or SOPs..." rows="1"></textarea>
-    <button id="send" type="submit">Send</button>
-  </div>
-</form>
+    <h2>Vehicles <span class="cnt" id="vehCnt">–</span></h2>
+    <table id="vehicles"><thead>
+      <tr><th>ID</th><th>Type</th><th>Location</th><th>Status</th></tr>
+    </thead><tbody></tbody></table>
+
+    <h2 id="drvHead">Drivers <span class="cnt" id="drvCnt">–</span></h2>
+    <table id="drivers"><thead>
+      <tr><th>ID</th><th>Name</th><th>Shift ends</th><th>Status</th></tr>
+    </thead><tbody></tbody></table>
+  </aside>
+
+  <section id="chatwrap">
+    <div id="chat">
+      <div class="msg bot">Hello! Ask about schedules, delays, vehicle availability, or approved procedures — or click a row / quick question. You can attach a photo or short video of a fault.</div>
+    </div>
+    <div id="quick">
+      <button class="qbtn">Which trips are delayed or cancelled right now?</button>
+      <button class="qbtn">Which vehicles are available as replacements?</button>
+      <button class="qbtn">Who is on standby to cover a trip?</button>
+      <button class="qbtn">What is the approved procedure for a vehicle breakdown?</button>
+    </div>
+    <form id="f">
+      <div id="previews"></div>
+      <div class="formrow">
+        <label class="attach">📎
+          <input id="files" type="file" accept="image/*,video/*" multiple hidden>
+        </label>
+        <textarea id="msg" placeholder="Ask about schedules, vehicles, drivers, or SOPs…" rows="1"></textarea>
+        <button class="send" id="send" type="submit">Send</button>
+      </div>
+    </form>
+  </section>
+</main>
 
 <script>
-const chat = document.getElementById('chat');
-const form = document.getElementById('f');
-const msgEl = document.getElementById('msg');
-const filesEl = document.getElementById('files');
-const previews = document.getElementById('previews');
-const sendBtn = document.getElementById('send');
+const $ = id => document.getElementById(id);
+const chat = $('chat'), form = $('f'), msgEl = $('msg'), filesEl = $('files'),
+      previews = $('previews'), sendBtn = $('send'), roleEl = $('role');
 let attachments = [];
 
-fetch('/api/health').then(r => r.json()).then(h => {
-  document.getElementById('status').textContent = `LLM: ${h.llm} · SOP search: ${h.sop_search_mode}`;
-}).catch(() => document.getElementById('status').textContent = 'offline');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const badge = s => `<span class="badge b-${esc(s)}">${esc(s.replace('_',' '))}</span>`;
+const hhmm = iso => new Date(iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
+fetch('/api/health').then(r => r.json()).then(h => {
+  $('status').textContent = `LLM: ${h.llm} · SOP: ${h.sop_search_mode}`;
+}).catch(() => $('status').textContent = 'offline');
+
+/* ---------- overview panel ---------- */
+async function loadOverview() {
+  const r = await fetch('/api/overview?role=' + roleEl.value);
+  const d = await r.json();
+  $('obs').textContent = 'observed ' + new Date(d.observed_at).toLocaleTimeString();
+
+  $('tripCnt').textContent = d.trips.length;
+  $('trips').tBodies[0].innerHTML = d.trips.map(t => {
+    const extra = t.status === 'delayed' ? ` +${t.delay_min}m` : '';
+    return `<tr class="click" data-q="What is the status of trip ${esc(t.trip_id)} on route ${esc(t.route)}?">
+      <td><b>${esc(t.route)}</b><br><span style="color:#6b7a90">${esc(t.trip_id)}</span></td>
+      <td>${esc(t.destination)}</td><td>${hhmm(t.departure)}</td>
+      <td>${badge(t.status)}${extra}</td></tr>`;
+  }).join('');
+
+  $('vehCnt').textContent = d.vehicles.length;
+  $('vehicles').tBodies[0].innerHTML = d.vehicles.map(v =>
+    `<tr class="click" data-q="What is the status of vehicle ${esc(v.vehicle_id)}?">
+      <td>${esc(v.vehicle_id)}</td><td>${esc(v.type)}</td>
+      <td>${esc(v.location)}</td><td>${badge(v.status)}</td></tr>`
+  ).join('');
+
+  const showDrv = d.drivers.length > 0;
+  $('drvHead').style.display = showDrv ? '' : 'none';
+  $('drivers').style.display = showDrv ? '' : 'none';
+  $('drvCnt').textContent = d.drivers.length;
+  $('drivers').tBodies[0].innerHTML = d.drivers.map(dr =>
+    `<tr class="click" data-q="Is driver ${esc(dr.driver_id)} available to cover a trip?">
+      <td>${esc(dr.driver_id)}</td><td>${esc(dr.name)}</td>
+      <td>${hhmm(dr.shift_end)}</td><td>${badge(dr.status)}</td></tr>`
+  ).join('');
+}
+$('refresh').onclick = loadOverview;
+roleEl.onchange = loadOverview;
+document.getElementById('panel').addEventListener('click', e => {
+  const row = e.target.closest('tr.click');
+  if (row) { msgEl.value = row.dataset.q; msgEl.focus(); }
+});
+loadOverview();
+
+/* ---------- quick questions ---------- */
+document.getElementById('quick').addEventListener('click', e => {
+  if (e.target.classList.contains('qbtn')) {
+    msgEl.value = e.target.textContent;
+    form.requestSubmit();
+  }
+});
+
+/* ---------- attachments ---------- */
 filesEl.addEventListener('change', () => {
   for (const f of filesEl.files) attachments.push(f);
   filesEl.value = '';
   renderPreviews();
 });
-
 function renderPreviews() {
   previews.innerHTML = '';
   attachments.forEach((f, i) => {
@@ -105,6 +232,7 @@ function renderPreviews() {
   });
 }
 
+/* ---------- chat ---------- */
 function addMsg(cls, html) {
   const d = document.createElement('div');
   d.className = 'msg ' + cls;
@@ -113,8 +241,6 @@ function addMsg(cls, html) {
   chat.scrollTop = chat.scrollHeight;
   return d;
 }
-
-const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -125,14 +251,13 @@ form.addEventListener('submit', async (e) => {
   for (const f of attachments) {
     const url = URL.createObjectURL(f);
     userHtml += f.type.startsWith('video/')
-      ? `<video src="${url}" controls muted></video>`
-      : `<img src="${url}">`;
+      ? `<video src="${url}" controls muted></video>` : `<img src="${url}">`;
   }
   addMsg('user', userHtml);
 
   const fd = new FormData();
   fd.append('message', text);
-  fd.append('role', document.getElementById('role').value);
+  fd.append('role', roleEl.value);
   for (const f of attachments) fd.append('files', f);
   msgEl.value = ''; attachments = []; renderPreviews();
   sendBtn.disabled = true;
@@ -146,7 +271,7 @@ form.addEventListener('submit', async (e) => {
     if (data.evidence.length) {
       html += '<div class="evidence">' + data.evidence.map(ev =>
         `<span class="chip ${ev.fresh ? '' : 'stale'}" title="${esc(ev.summary)}">` +
-        `${esc(ev.source)} · ${new Date(ev.observed_at).toLocaleTimeString()}${ev.fresh ? '' : ' · STALE'}</span>`
+        `${esc(ev.source)} · ${hhmm(ev.observed_at)}${ev.fresh ? '' : ' · STALE'}</span>`
       ).join('') + '</div>';
     }
     for (const n of data.notes) html += `<div class="note">⚠ ${esc(n)}</div>`;
