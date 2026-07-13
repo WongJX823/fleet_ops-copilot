@@ -1,0 +1,21 @@
+{
+  "comment": "Mock fleet/telematics + roster service.",
+  "vehicles": [
+    {"vehicle_id": "V-101", "type": "bus_12m", "status": "in_service", "location": "Central Depot"},
+    {"vehicle_id": "V-102", "type": "bus_12m", "status": "in_service", "location": "Harbour Terminal"},
+    {"vehicle_id": "V-103", "type": "bus_12m", "status": "in_service", "location": "en_route"},
+    {"vehicle_id": "V-104", "type": "bus_18m", "status": "in_service", "location": "Airport West"},
+    {"vehicle_id": "V-105", "type": "bus_12m", "status": "maintenance", "location": "North Yard workshop", "note": "engine fault, ETA repair 6h"},
+    {"vehicle_id": "V-106", "type": "bus_12m", "status": "available", "location": "North Yard"},
+    {"vehicle_id": "V-107", "type": "bus_12m", "status": "available", "location": "Central Depot"},
+    {"vehicle_id": "V-108", "type": "minibus", "status": "available", "location": "Central Depot"}
+  ],
+  "drivers": [
+    {"driver_id": "D-01", "name": "A. Rahman", "status": "on_duty", "shift_end_offset_min": 300},
+    {"driver_id": "D-02", "name": "S. Lee", "status": "on_duty", "shift_end_offset_min": 240},
+    {"driver_id": "D-03", "name": "M. Tan", "status": "on_duty", "shift_end_offset_min": 180},
+    {"driver_id": "D-04", "name": "J. Wong", "status": "on_duty", "shift_end_offset_min": 420},
+    {"driver_id": "D-05", "name": "R. Kumar", "status": "standby", "shift_end_offset_min": 360},
+    {"driver_id": "D-06", "name": "P. Ng", "status": "off_duty", "shift_end_offset_min": 0}
+  ]
+}

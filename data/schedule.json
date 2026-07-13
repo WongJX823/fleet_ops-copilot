@@ -1,0 +1,11 @@
+{
+  "comment": "Mock schedule service. depart_offset_min is relative to load time so the demo always has upcoming departures.",
+  "trips": [
+    {"trip_id": "T-1201", "route": "12", "origin": "Central Depot", "destination": "Harbour Terminal", "depart_offset_min": 25, "status": "on_time", "delay_min": 0, "vehicle_id": "V-101", "driver_id": "D-01"},
+    {"trip_id": "T-1202", "route": "12", "origin": "Harbour Terminal", "destination": "Central Depot", "depart_offset_min": 70, "status": "on_time", "delay_min": 0, "vehicle_id": "V-102", "driver_id": "D-02"},
+    {"trip_id": "T-1801", "route": "18", "origin": "Central Depot", "destination": "Airport West", "depart_offset_min": 15, "status": "delayed", "delay_min": 20, "delay_reason": "road works on Airport Expressway", "vehicle_id": "V-103", "driver_id": "D-03"},
+    {"trip_id": "T-1802", "route": "18", "origin": "Airport West", "destination": "Central Depot", "depart_offset_min": 95, "status": "on_time", "delay_min": 0, "vehicle_id": "V-104", "driver_id": "D-04"},
+    {"trip_id": "T-0701", "route": "7", "origin": "North Yard", "destination": "City Mall", "depart_offset_min": 40, "status": "cancelled", "delay_min": 0, "cancel_reason": "vehicle breakdown, replacement pending", "vehicle_id": "V-105", "driver_id": "D-05"},
+    {"trip_id": "T-0702", "route": "7", "origin": "City Mall", "destination": "North Yard", "depart_offset_min": 120, "status": "on_time", "delay_min": 0, "vehicle_id": "V-106", "driver_id": "D-01"}
+  ]
+}
