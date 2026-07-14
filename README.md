@@ -40,6 +40,18 @@ Without an API key the app still runs end-to-end using a stub LLM and keyword SO
 search — useful for tests and offline demos. Video attachments need
 `opencv-python-headless` (optional) for frame extraction.
 
+No real incident photos on hand to test the image/video attachment path? Generate
+synthetic ones:
+
+```bash
+pip install opencv-python-headless
+python tools/generate_demo_attachments.py
+```
+
+Writes `demo_assets/fault_image.jpg` (a dashboard warning-light illustration) and
+`demo_assets/fault_video.mp4` (a short "engine smoke + hazard lights" clip) — attach
+either in the chat UI to exercise the real vision path.
+
 Run tests (offline, no key needed):
 
 ```bash

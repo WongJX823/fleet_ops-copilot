@@ -194,7 +194,7 @@ function showApp() {
   $('appRoot').style.display = '';
   $('whoami').textContent = `${currentUser.name} · ${currentUser.role}`;
   fetch('/api/health').then(r => r.json()).then(h => {
-    $('status').textContent = `LLM: ${h.llm} · SOP: ${h.sop_search_mode}`;
+    $('status').textContent = `Data: ${h.data_date} · LLM: ${h.llm} · SOP: ${h.sop_search_mode}`;
   }).catch(() => $('status').textContent = 'offline');
   loadOverview();
 }

@@ -11,6 +11,9 @@ venv/
 # Runtime artifacts (audit log, uploads)
 runtime/
 
+# Generated demo attachments (tools/generate_demo_attachments.py)
+demo_assets/
+
 # Office/drawio lock & backup files
 ~$*
 .$*

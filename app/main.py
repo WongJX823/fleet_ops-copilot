@@ -22,6 +22,8 @@ orchestrator: Orchestrator | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global orchestrator
+    store = get_store()  # prepare phase: catch up the daily fleet/schedule simulation
+    app.state.sim_date = store.sim_date
     index = build_index()  # prepare phase: chunk + embed SOPs
     orchestrator = Orchestrator(index)
     app.state.sop_mode = index.mode
@@ -43,6 +45,7 @@ async def health() -> dict:
         "sop_search_mode": app.state.sop_mode,
         "intent_mode": orchestrator.classifier.mode if orchestrator else None,
         "llm": orchestrator.llm.model if orchestrator else None,
+        "data_date": app.state.sim_date,
     }
 
 
