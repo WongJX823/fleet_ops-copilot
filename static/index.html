@@ -91,6 +91,13 @@
     #panel { border-right: none; border-bottom: 1px solid var(--line); }
   }
 
+  /* ---------- escalations ---------- */
+  .esc { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 11px; }
+  .escq { color: #6b7a90; margin: 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .esc .qbtn { padding: 2px 8px; font-size: 10px; }
+  .b-open     { background: var(--amber-bg); color: #8a6414; }
+  .b-resolved { background: var(--green-bg); color: var(--green); }
+
   /* ---------- login ---------- */
   #loginScreen { position: fixed; inset: 0; background: var(--navy); display: flex;
                  align-items: center; justify-content: center; z-index: 10; }
@@ -145,6 +152,9 @@
     <table id="drivers"><thead>
       <tr><th>ID</th><th>Name</th><th>Shift ends</th><th>Status</th></tr>
     </thead><tbody></tbody></table>
+
+    <h2 id="escHead">Escalations <span class="cnt" id="escCnt">–</span></h2>
+    <div id="escList"></div>
   </aside>
 
   <section id="chatwrap">
@@ -197,6 +207,7 @@ function showApp() {
     $('status').textContent = `Data: ${h.data_date} · LLM: ${h.llm} · SOP: ${h.sop_search_mode}`;
   }).catch(() => $('status').textContent = 'offline');
   loadOverview();
+  loadEscalations();
 }
 async function checkAuth() {
   try {
@@ -267,7 +278,35 @@ async function loadOverview() {
       <td>${hhmm(dr.shift_end)}</td><td>${badge(dr.status)}</td></tr>`
   ).join('');
 }
-$('refresh').onclick = loadOverview;
+/* ---------- escalations ---------- */
+async function loadEscalations() {
+  const head = $('escHead'), list = $('escList');
+  const hide = () => { head.style.display = 'none'; list.style.display = 'none'; };
+  if (!currentUser || currentUser.role === 'driver') return hide();
+  const r = await fetch('/api/escalations');
+  if (!r.ok) return hide();
+  const items = await r.json();
+  head.style.display = ''; list.style.display = '';
+  $('escCnt').textContent = items.filter(i => i.status === 'open').length + ' open';
+  list.innerHTML = items.slice(0, 8).map(i => `
+    <div class="esc">
+      <div><b>${esc(i.id)}</b> ${badge(i.status)} <span class="meta">conf ${i.confidence ?? '-'} · ${esc(i.role || '')}</span></div>
+      <div class="escq" title="${esc(i.question || '')}">${esc(i.question || '')}</div>
+      ${i.status === 'open' && currentUser.role === 'manager'
+        ? `<button class="qbtn esc-resolve" data-id="${esc(i.id)}">Resolve</button>` : ''}
+    </div>`).join('') || '<div class="meta">none</div>';
+}
+$('escList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.esc-resolve');
+  if (!btn) return;
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('note', 'Resolved from dashboard');
+  await fetch(`/api/escalations/${btn.dataset.id}/resolve`, { method: 'POST', body: fd }).catch(() => {});
+  loadEscalations();
+});
+
+$('refresh').onclick = () => { loadOverview(); loadEscalations(); };
 document.getElementById('panel').addEventListener('click', e => {
   const row = e.target.closest('tr.click');
   if (row) { msgEl.value = row.dataset.q; msgEl.focus(); }
@@ -347,11 +386,13 @@ form.addEventListener('submit', async (e) => {
         `${esc(ev.source)} · ${hhmm(ev.observed_at)}${ev.fresh ? '' : ' · STALE'}</span>`
       ).join('') + '</div>';
     }
+    if (data.escalation_id) html += `<div class="note">⚑ Escalated — handoff ${esc(data.escalation_id)} sent to the operator queue</div>`;
     for (const n of data.notes) html += `<div class="note">⚠ ${esc(n)}</div>`;
     html += `<div class="meta">intent: ${data.intent.join(', ')} · role: ${data.role} · model: ${data.model} · confidence: ${Math.round(data.confidence * 100)}%</div>`;
     pending.innerHTML = html;
     if (data.escalated) pending.classList.add('escalated');
     transcript.push({role: 'assistant', content: data.answer});
+    if (data.escalation_id) loadEscalations();
   } catch (err) {
     pending.innerHTML = '⚠ ' + esc(String(err));
     pending.classList.add('escalated');

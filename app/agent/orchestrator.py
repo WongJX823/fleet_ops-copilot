@@ -5,6 +5,7 @@ This is the runtime half of the 'RAG + Tool Pipeline' diagram page.
 """
 import json
 
+from .. import escalations
 from ..audit import record
 from ..config import CONFIDENCE_ESCALATION_THRESHOLD, DEFAULT_ROLE, ROLE_TOOLS
 from ..models import ChatResponse, Evidence
@@ -34,6 +35,7 @@ class Orchestrator:
         images: list[tuple[str, bytes]],
         notes: list[str],
         history: list[dict] | None = None,
+        user: dict | None = None,
     ) -> ChatResponse:
         role = role if role in ROLE_TOOLS else DEFAULT_ROLE
         allowed = ROLE_TOOLS[role]
@@ -74,6 +76,25 @@ class Orchestrator:
 
         answer = self.llm.answer(packed, images, history)
 
+        escalation_id = None
+        if escalated:
+            escalation_id = escalations.create(
+                {
+                    "user": user,
+                    "role": role,
+                    "question": question,
+                    "history": history or [],
+                    "intents": intents,
+                    "intent_mode": intent_mode,
+                    "confidence": score,
+                    "notes": list(notes),
+                    "evidence": [e.model_dump(mode="json") for e in evidence],
+                    "draft_answer": answer,
+                    "model": self.llm.model,
+                }
+            )
+            notes.append(f"Escalation {escalation_id} logged for operator review.")
+
         response = ChatResponse(
             answer=answer,
             intent=intents,
@@ -82,6 +103,7 @@ class Orchestrator:
             model=self.llm.model,
             confidence=score,
             escalated=escalated,
+            escalation_id=escalation_id,
             notes=notes,
         )
         record(
@@ -97,6 +119,7 @@ class Orchestrator:
                 "model": self.llm.model,
                 "confidence": score,
                 "escalated": escalated,
+                "escalation_id": escalation_id,
                 "answer_preview": answer[:200],
             }
         )

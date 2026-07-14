@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
 
+from . import escalations
 from .agent.llm import extract_video_frames
 from .agent.orchestrator import Orchestrator
 from .auth import COOKIE_NAME, SESSION_TTL_HOURS, User, create_session_token, get_current_user, verify_password
@@ -88,6 +89,42 @@ async def overview(user: User = Depends(get_current_user)) -> dict:
     }
 
 
+ESCALATION_VIEW_ROLES = {"dispatcher", "planner", "manager"}
+
+
+@app.get("/api/escalations")
+async def list_escalations(user: User = Depends(get_current_user)) -> list[dict]:
+    """Operator queue (summaries). Drivers have no operator duties."""
+    if user.role not in ESCALATION_VIEW_ROLES:
+        raise HTTPException(403, "Role may not view escalations")
+    return escalations.list_all()
+
+
+@app.get("/api/escalations/{esc_id}")
+async def get_escalation(esc_id: str, user: User = Depends(get_current_user)) -> dict:
+    """Full handoff package: history, evidence, notes, draft answer."""
+    if user.role not in ESCALATION_VIEW_ROLES:
+        raise HTTPException(403, "Role may not view escalations")
+    record = escalations.get(esc_id)
+    if record is None:
+        raise HTTPException(404, "Escalation not found")
+    return record
+
+
+@app.post("/api/escalations/{esc_id}/resolve")
+async def resolve_escalation(
+    esc_id: str,
+    note: str = Form(""),
+    user: User = Depends(get_current_user),
+) -> dict:
+    if user.role != "manager":
+        raise HTTPException(403, "Only managers can resolve escalations")
+    record = escalations.resolve(esc_id, resolver=user.username, note=note)
+    if record is None:
+        raise HTTPException(404, "Escalation not found")
+    return record
+
+
 MAX_HISTORY_TURNS = 8
 
 
@@ -140,4 +177,11 @@ async def chat(
         else:
             notes.append(f"Attachment '{f.filename}' has unsupported type '{ctype}' and was skipped.")
 
-    return orchestrator.handle(message, user.role, images, notes, _parse_history(history))
+    return orchestrator.handle(
+        message,
+        user.role,
+        images,
+        notes,
+        _parse_history(history),
+        user={"username": user.username, "name": user.name},
+    )

@@ -191,3 +191,65 @@ def test_video_upload_extracts_frames(tmp_path):
     body = r.json()
     assert any("Video sampled into" in n for n in body["notes"]), body["notes"]
     assert "3 attached image(s)/frame(s)" in body["answer"]
+
+
+def test_escalated_turn_creates_handoff_package():
+    with client() as c:
+        login(c, "driver")
+        r = c.post("/api/chat", data={"message": "Which drivers are available for standby cover?"})
+        body = r.json()
+        assert body["escalated"] is True
+        assert body["escalation_id"], "escalated turn should create a handoff"
+        assert any("logged for operator review" in n for n in body["notes"])
+
+        login(c, "manager")
+        queue = c.get("/api/escalations").json()
+        match = next(e for e in queue if e["id"] == body["escalation_id"])
+        assert match["status"] == "open"
+        assert match["confidence"] == body["confidence"]
+
+        full = c.get(f"/api/escalations/{body['escalation_id']}").json()
+        # the operator package carries the complete turn
+        for key in ("question", "history", "evidence", "notes", "draft_answer", "user"):
+            assert key in full, f"package missing {key}"
+        assert full["user"]["username"] == "driver"
+
+
+def test_confident_turn_creates_no_handoff():
+    with client() as c:
+        login(c, "dispatcher")
+        r = c.post("/api/chat", data={"message": "Why is route 18 delayed?"})
+        body = r.json()
+        assert body["escalated"] is False
+        assert body["escalation_id"] is None
+
+
+def test_driver_cannot_view_escalations():
+    with client() as c:
+        login(c, "driver")
+        assert c.get("/api/escalations").status_code == 403
+
+
+def test_only_manager_resolves_escalations():
+    with client() as c:
+        login(c, "driver")
+        esc_id = c.post("/api/chat", data={"message": "Which drivers are on standby?"}).json()["escalation_id"]
+        assert esc_id
+
+        login(c, "dispatcher")
+        assert c.post(f"/api/escalations/{esc_id}/resolve", data={"note": "x"}).status_code == 403
+
+        login(c, "manager")
+        done = c.post(f"/api/escalations/{esc_id}/resolve", data={"note": "Reassigned manually"})
+        assert done.status_code == 200
+        body = done.json()
+        assert body["status"] == "resolved"
+        assert body["resolved_by"] == "manager"
+        assert body["resolution_note"] == "Reassigned manually"
+
+
+def test_escalation_ids_are_validated():
+    with client() as c:
+        login(c, "manager")
+        assert c.get("/api/escalations/../../etc/passwd").status_code in (404, 422)
+        assert c.get("/api/escalations/ESC-99999999-000000-ffff").status_code == 404
