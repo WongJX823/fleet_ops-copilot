@@ -39,7 +39,8 @@ FLEET_LAG_MINUTES = int(os.getenv("FLEET_LAG_MINUTES", "0"))
 # to a human rather than being presented as a confident answer (FR-08).
 CONFIDENCE_ESCALATION_THRESHOLD = float(os.getenv("CONFIDENCE_ESCALATION_THRESHOLD", "0.5"))
 
-# Roles and the tools each may call (FR-01, FR-03). Read-only MVP: no action tools.
+# Roles and the READ tools each may call (FR-01, FR-03). Write actions are separate:
+# they go through server-side proposals + the approval gate (app/tools/actions.py).
 ROLE_TOOLS: dict[str, set[str]] = {
     "dispatcher": {"schedule_lookup", "fleet_status", "sop_search"},
     "planner": {"schedule_lookup", "fleet_status", "sop_search"},

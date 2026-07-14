@@ -19,7 +19,13 @@ this repo also contains the **Phase 2 read-only MVP** described in the report.
 - Confidence scoring (coverage × freshness × grounding, discounted in keyword-fallback
   mode) drives escalation — an answer built on partial, stale, or empty evidence
   escalates to a human instead of being presented as confident (FR-08)
-- Read-only: the agent recommends actions and cites SOPs but cannot execute changes
+- SOP-guided incident diagnosis (breakdown / delay / driver unavailable): the SOP
+  checklist is executed as code against live data, and low-confidence or conflicting
+  answers are packaged into an escalation queue a human operator can pick up
+- Approval-gated actions (FR-06): the agent proposes (create incident ticket, publish
+  delay notice), a permitted human approves via an action card, the governed tool
+  executes exactly once (idempotent) with a receipt + rollback note, and the audit
+  log records the approver — the agent never executes anything autonomously
 
 ## Quickstart
 
@@ -74,7 +80,10 @@ that source's evidence renders as stale and the answer escalates (FR-05).
 | `app/agent/` | Agent orchestration: intent → tools → validate → pack → LLM (Section 8) |
 | `app/agent/confidence.py` | Confidence scoring + escalation threshold (FR-08) |
 | `app/agent/precedence.py` | Cross-source conflict detection + source precedence (FR-05) |
+| `app/agent/diagnosis.py` | SOP-guided incident diagnosis flows (Phase 3) |
+| `app/escalations.py` | Escalation handoff queue for human operators (FR-08) |
 | `app/tools/` | Governed operational tools over mock live systems (Section 9) |
+| `app/tools/actions.py` | Approval-gated write actions with idempotency + rollback notes (FR-06) |
 | `app/rag/` | Prepare phase: chunk → embed → vector index over SOPs |
 | `app/audit.py` | Audit trail (FR-07) |
 | `data/` | Mock schedule/fleet services, user directory, and SOP documents |

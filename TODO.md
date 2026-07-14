@@ -50,6 +50,6 @@ Update checkboxes as items land.
 
 ## Housekeeping
 
-- [ ] Remove stray Office lock/backup files from `deliverables/` (now gitignored)
-- [ ] Export drawio pages to PNG/PDF for people without draw.io
+- [x] Remove stray Office lock/backup files from `deliverables/` (now gitignored)
+- [x] Export drawio pages to PNG for people without draw.io (`deliverables/exports/`)
 - [x] Add CI (GitHub Actions: pytest on push)
