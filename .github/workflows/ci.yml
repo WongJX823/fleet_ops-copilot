@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      # opencv is optional at runtime but installed here so the video
+      # frame-extraction test runs instead of being skipped.
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install opencv-python-headless
+
+      # No OPENAI_API_KEY in CI: the suite runs fully offline against the
+      # stub LLM and keyword search by design.
+      - name: Run tests
+        run: pytest -q

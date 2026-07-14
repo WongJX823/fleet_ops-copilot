@@ -52,4 +52,4 @@ Update checkboxes as items land.
 
 - [ ] Remove stray Office lock/backup files from `deliverables/` (now gitignored)
 - [ ] Export drawio pages to PNG/PDF for people without draw.io
-- [ ] Add CI (GitHub Actions: pytest on push)
+- [x] Add CI (GitHub Actions: pytest on push)
