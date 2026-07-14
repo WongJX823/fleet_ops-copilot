@@ -5,11 +5,12 @@ Then open http://127.0.0.1:8000
 """
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
 
 from .agent.llm import extract_video_frames
 from .agent.orchestrator import Orchestrator
+from .auth import COOKIE_NAME, SESSION_TTL_HOURS, User, create_session_token, get_current_user, verify_password
 from .config import MAX_UPLOAD_BYTES, STATIC_DIR
 from .models import ChatResponse
 from .rag.ingest import build_index
@@ -45,8 +46,34 @@ async def health() -> dict:
     }
 
 
+@app.post("/api/login")
+async def login(response: Response, username: str = Form(...), password: str = Form(...)) -> dict:
+    user = verify_password(username, password)
+    if user is None:
+        raise HTTPException(401, "Invalid username or password")
+    response.set_cookie(
+        COOKIE_NAME,
+        create_session_token(user),
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_TTL_HOURS * 3600,
+    )
+    return {"username": user.username, "role": user.role, "name": user.name}
+
+
+@app.post("/api/logout")
+async def logout(response: Response) -> dict:
+    response.delete_cookie(COOKIE_NAME)
+    return {"status": "ok"}
+
+
+@app.get("/api/me")
+async def me(user: User = Depends(get_current_user)) -> dict:
+    return {"username": user.username, "role": user.role, "name": user.name}
+
+
 @app.get("/api/overview")
-async def overview(role: str = "dispatcher") -> dict:
+async def overview(user: User = Depends(get_current_user)) -> dict:
     """Snapshot for the dashboard panel. Same least-privilege rule as the
     fleet tool: drivers don't see other drivers' roster details."""
     store = get_store()
@@ -54,7 +81,7 @@ async def overview(role: str = "dispatcher") -> dict:
         "observed_at": store.loaded_at.isoformat(),
         "trips": store.trips,
         "vehicles": store.vehicles,
-        "drivers": [] if role == "driver" else store.drivers,
+        "drivers": [] if user.role == "driver" else store.drivers,
     }
 
 
@@ -84,9 +111,9 @@ def _parse_history(raw: str) -> list[dict]:
 @app.post("/api/chat")
 async def chat(
     message: str = Form(...),
-    role: str = Form("dispatcher"),
     history: str = Form("[]"),
     files: list[UploadFile] = File(default=[]),
+    user: User = Depends(get_current_user),
 ) -> ChatResponse:
     if not message.strip():
         raise HTTPException(400, "Empty message")
@@ -110,4 +137,4 @@ async def chat(
         else:
             notes.append(f"Attachment '{f.filename}' has unsupported type '{ctype}' and was skipped.")
 
-    return orchestrator.handle(message, role, images, notes, _parse_history(history))
+    return orchestrator.handle(message, user.role, images, notes, _parse_history(history))

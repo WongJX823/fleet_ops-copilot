@@ -22,8 +22,8 @@ Update checkboxes as items land.
 - [x] Install `opencv-python-headless` and verify video frame extraction end-to-end
 - [x] Real intent classification (LLM-based, keyword fallback offline)
 - [x] Conversation memory: pass recent turns to the LLM so follow-up questions work
-- [ ] Persist the SOP vector index to disk instead of re-embedding on every startup
-- [ ] Real authentication (login/session) instead of the role dropdown
+- [x] Persist the SOP vector index to disk instead of re-embedding on every startup
+- [x] Real authentication (login/session) instead of the role dropdown
 - [ ] Evaluation set: normal, ambiguous, stale-data, and failure cases (report Section 16)
 
 ## Phase 3 — guided resolution

@@ -1,22 +1,32 @@
-"""In-memory vector index over SOP chunks.
+"""In-memory vector index over SOP chunks, cached to disk.
 
-Prepare phase: embed every chunk once at startup (OpenAI embeddings).
+Prepare phase: embed every chunk once (OpenAI embeddings) and cache the
+resulting matrix under runtime/, keyed by a fingerprint of the embed model
+and every chunk's content. Later startups reuse the cache instead of
+re-embedding — the SOPs only change when someone edits them, not every time
+the process restarts.
+
 Runtime: embed the question, cosine similarity, return top-k chunks.
 
 Without an API key it degrades to keyword-overlap scoring so the whole
-pipeline still runs offline (demo/tests).
+pipeline still runs offline (demo/tests) — no cache is used in that mode.
 """
+import hashlib
 import math
 import re
+import zipfile
+from pathlib import Path
 
 import numpy as np
 
-from ..config import OPENAI_API_KEY, OPENAI_EMBED_MODEL
+from ..config import OPENAI_API_KEY, OPENAI_EMBED_MODEL, RUNTIME_DIR
 from .chunker import Chunk
+
+CACHE_PATH = RUNTIME_DIR / "sop_index_cache.npz"
 
 
 class SopIndex:
-    def __init__(self, chunks: list[Chunk]):
+    def __init__(self, chunks: list[Chunk], cache_path: Path = CACHE_PATH):
         self.chunks = chunks
         self._matrix: np.ndarray | None = None
         self._client = None
@@ -24,7 +34,11 @@ class SopIndex:
             from openai import OpenAI
 
             self._client = OpenAI()
-            self._matrix = self._embed([c.text for c in chunks])
+            fingerprint = _fingerprint(chunks, OPENAI_EMBED_MODEL)
+            self._matrix = _load_cache(cache_path, fingerprint, len(chunks))
+            if self._matrix is None:
+                self._matrix = self._embed([c.text for c in chunks])
+                _save_cache(cache_path, fingerprint, self._matrix)
 
     @property
     def mode(self) -> str:
@@ -45,6 +59,37 @@ class SopIndex:
         resp = self._client.embeddings.create(model=OPENAI_EMBED_MODEL, input=texts)
         mat = np.array([d.embedding for d in resp.data], dtype=np.float32)
         return mat / np.linalg.norm(mat, axis=1, keepdims=True)
+
+
+def _fingerprint(chunks: list[Chunk], model: str) -> str:
+    """Hash of the embed model + every chunk's content, so the cache is
+    invalidated whenever the SOPs are edited or the model changes."""
+    h = hashlib.sha256(model.encode("utf-8"))
+    for c in chunks:
+        h.update(c.doc.encode("utf-8"))
+        h.update(c.heading.encode("utf-8"))
+        h.update(c.text.encode("utf-8"))
+    return h.hexdigest()
+
+
+def _load_cache(path: Path, fingerprint: str, n_chunks: int) -> np.ndarray | None:
+    if not path.exists():
+        return None
+    try:
+        with np.load(path, allow_pickle=False) as data:
+            if str(data["fingerprint"][0]) != fingerprint:
+                return None
+            matrix = data["matrix"]
+    except (OSError, KeyError, ValueError, zipfile.BadZipFile):
+        return None
+    if matrix.shape[0] != n_chunks:
+        return None
+    return matrix
+
+
+def _save_cache(path: Path, fingerprint: str, matrix: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.savez(path, matrix=matrix, fingerprint=np.array([fingerprint]))
 
 
 _WORD = re.compile(r"[a-z]{3,}")

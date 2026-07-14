@@ -21,6 +21,7 @@
   header select { padding: 3px 8px; border-radius: 5px; border: none; font-size: 12px; }
   #status { font-size: 11px; opacity: .75; }
 
+  #appRoot { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   main { flex: 1; display: grid; grid-template-columns: 360px 1fr; min-height: 0; }
 
   /* ---------- overview panel ---------- */
@@ -89,19 +90,40 @@
     main { grid-template-columns: 1fr; grid-template-rows: 240px 1fr; }
     #panel { border-right: none; border-bottom: 1px solid var(--line); }
   }
+
+  /* ---------- login ---------- */
+  #loginScreen { position: fixed; inset: 0; background: var(--navy); display: flex;
+                 align-items: center; justify-content: center; z-index: 10; }
+  .login-box { background: #fff; border-radius: 10px; padding: 28px 26px; width: 260px;
+               box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+  .login-box h1 { font-size: 16px; margin: 0 0 3px; color: var(--navy); }
+  .login-box p { font-size: 11px; color: #6b7a90; margin: 0 0 16px; }
+  .login-box label { display: block; font-size: 11px; color: #6b7a90; margin: 10px 0 3px; }
+  .login-box input { width: 100%; padding: 7px 9px; border: 1px solid #c3ceda; border-radius: 6px;
+                      font: inherit; }
+  .login-box button { width: 100%; margin-top: 16px; background: var(--blue); color: #fff; border: none;
+                       border-radius: 8px; padding: 9px; font-size: 13px; cursor: pointer; }
+  .login-box button:disabled { opacity: .6; cursor: wait; }
+  #loginError { color: var(--red); font-size: 11px; margin-top: 8px; min-height: 1.2em; }
 </style>
 </head>
 <body>
+<div id="loginScreen">
+  <form class="login-box" id="loginForm">
+    <h1>Fleet Ops Copilot</h1>
+    <p>Sign in to continue</p>
+    <label>Username <input id="loginUser" autocomplete="username" required></label>
+    <label>Password <input id="loginPass" type="password" autocomplete="current-password" required></label>
+    <div id="loginError"></div>
+    <button type="submit" id="loginBtn">Sign in</button>
+  </form>
+</div>
+
+<div id="appRoot" style="display:none">
 <header>
   <h1>Fleet Ops Copilot <span>read-only MVP</span></h1>
-  <label>Role:
-    <select id="role">
-      <option value="dispatcher">Dispatcher</option>
-      <option value="planner">Planner</option>
-      <option value="driver">Driver</option>
-      <option value="manager">Operations Manager</option>
-    </select>
-  </label>
+  <span id="whoami"></span>
+  <button id="logout" class="qbtn" type="button">Log out</button>
   <span id="status">connecting…</span>
 </header>
 
@@ -147,25 +169,75 @@
     </form>
   </section>
 </main>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
 const chat = $('chat'), form = $('f'), msgEl = $('msg'), filesEl = $('files'),
-      previews = $('previews'), sendBtn = $('send'), roleEl = $('role');
+      previews = $('previews'), sendBtn = $('send');
 let attachments = [];
 let transcript = [];   // [{role:'user'|'assistant', content}] sent as conversation memory
+let currentUser = null;
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const badge = s => `<span class="badge b-${esc(s)}">${esc(s.replace('_',' '))}</span>`;
 const hhmm = iso => new Date(iso).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-fetch('/api/health').then(r => r.json()).then(h => {
-  $('status').textContent = `LLM: ${h.llm} · SOP: ${h.sop_search_mode}`;
-}).catch(() => $('status').textContent = 'offline');
+/* ---------- auth ---------- */
+function showLogin(msg) {
+  $('loginScreen').style.display = 'flex';
+  $('appRoot').style.display = 'none';
+  $('loginError').textContent = msg || '';
+}
+function showApp() {
+  $('loginScreen').style.display = 'none';
+  $('appRoot').style.display = '';
+  $('whoami').textContent = `${currentUser.name} · ${currentUser.role}`;
+  fetch('/api/health').then(r => r.json()).then(h => {
+    $('status').textContent = `LLM: ${h.llm} · SOP: ${h.sop_search_mode}`;
+  }).catch(() => $('status').textContent = 'offline');
+  loadOverview();
+}
+async function checkAuth() {
+  try {
+    const r = await fetch('/api/me');
+    if (!r.ok) return showLogin();
+    currentUser = await r.json();
+    showApp();
+  } catch { showLogin(); }
+}
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('loginBtn');
+  btn.disabled = true;
+  $('loginError').textContent = '';
+  try {
+    const fd = new FormData();
+    fd.append('username', $('loginUser').value.trim());
+    fd.append('password', $('loginPass').value);
+    const r = await fetch('/api/login', { method: 'POST', body: fd });
+    if (!r.ok) { $('loginError').textContent = 'Invalid username or password.'; return; }
+    currentUser = await r.json();
+    $('loginPass').value = '';
+    showApp();
+  } catch {
+    $('loginError').textContent = 'Could not reach the server.';
+  } finally {
+    btn.disabled = false;
+  }
+});
+$('logout').addEventListener('click', async () => {
+  await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+  currentUser = null;
+  transcript = [];
+  showLogin();
+});
+checkAuth();
 
 /* ---------- overview panel ---------- */
 async function loadOverview() {
-  const r = await fetch('/api/overview?role=' + roleEl.value);
+  const r = await fetch('/api/overview');
+  if (r.status === 401) return showLogin('Session expired, please sign in again.');
   const d = await r.json();
   $('obs').textContent = 'observed ' + new Date(d.observed_at).toLocaleTimeString();
 
@@ -196,12 +268,10 @@ async function loadOverview() {
   ).join('');
 }
 $('refresh').onclick = loadOverview;
-roleEl.onchange = loadOverview;
 document.getElementById('panel').addEventListener('click', e => {
   const row = e.target.closest('tr.click');
   if (row) { msgEl.value = row.dataset.q; msgEl.focus(); }
 });
-loadOverview();
 
 /* ---------- quick questions ---------- */
 document.getElementById('quick').addEventListener('click', e => {
@@ -258,7 +328,6 @@ form.addEventListener('submit', async (e) => {
 
   const fd = new FormData();
   fd.append('message', text);
-  fd.append('role', roleEl.value);
   fd.append('history', JSON.stringify(transcript.slice(-8)));
   for (const f of attachments) fd.append('files', f);
   transcript.push({role: 'user', content: text});
@@ -268,6 +337,7 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const r = await fetch('/api/chat', { method: 'POST', body: fd });
+    if (r.status === 401) { pending.remove(); return showLogin('Session expired, please sign in again.'); }
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     let html = esc(data.answer);

@@ -1,0 +1,30 @@
+[
+  {
+    "username": "dispatcher",
+    "salt": "66cdd64f8d7b8b88e4498a24b6298948",
+    "password_hash": "f12772a215824cb583b2f1390d2c53d385ef0c48200017a49626be3f43fdb528",
+    "role": "dispatcher",
+    "name": "Alex Tan"
+  },
+  {
+    "username": "planner",
+    "salt": "a5aa8572976c7ac8a539f3154d8a05dc",
+    "password_hash": "d21029c02148731853c63006288657dd4fb15ae676f9ed840ff32f0a5a681f39",
+    "role": "planner",
+    "name": "Priya Singh"
+  },
+  {
+    "username": "driver",
+    "salt": "65627140c3d4fe139f63ed9bed314945",
+    "password_hash": "067f3ba0c2cba0c4c31aa2f5aafb90cf165f55ca2c45206052ef9f88f2cfecad",
+    "role": "driver",
+    "name": "J. Wong"
+  },
+  {
+    "username": "manager",
+    "salt": "512ad4c61352052f308ebacfb1c39232",
+    "password_hash": "f0e73c1c09234f85f2a4be4529f82b854969785547fd023701c85dd635ac4293",
+    "role": "manager",
+    "name": "M. Chen"
+  }
+]

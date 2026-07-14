@@ -7,9 +7,22 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+# Demo credentials from data/users.json (see app/auth.py for the hashing scheme).
+CREDENTIALS = {
+    "dispatcher": "dispatcher123",
+    "planner": "planner123",
+    "driver": "driver123",
+    "manager": "manager123",
+}
+
 
 def client() -> TestClient:
     return TestClient(app)
+
+
+def login(c: TestClient, role: str = "dispatcher") -> None:
+    r = c.post("/api/login", data={"username": role, "password": CREDENTIALS[role]})
+    assert r.status_code == 200, r.text
 
 
 def test_health():
@@ -23,9 +36,51 @@ def test_health():
         assert body["intent_mode"] == "keyword"
 
 
+def test_login_success_sets_session_cookie():
+    with client() as c:
+        r = c.post("/api/login", data={"username": "dispatcher", "password": "dispatcher123"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body == {"username": "dispatcher", "role": "dispatcher", "name": "Alex Tan"}
+        assert "fleetops_session" in r.cookies
+
+        me = c.get("/api/me")
+        assert me.status_code == 200
+        assert me.json()["role"] == "dispatcher"
+
+
+def test_login_wrong_password_rejected():
+    with client() as c:
+        r = c.post("/api/login", data={"username": "dispatcher", "password": "wrong"})
+        assert r.status_code == 401
+
+
+def test_login_unknown_user_rejected():
+    with client() as c:
+        r = c.post("/api/login", data={"username": "nobody", "password": "whatever"})
+        assert r.status_code == 401
+
+
+def test_protected_endpoints_require_login():
+    with client() as c:
+        assert c.get("/api/me").status_code == 401
+        assert c.get("/api/overview").status_code == 401
+        assert c.post("/api/chat", data={"message": "hello"}).status_code == 401
+
+
+def test_logout_clears_session():
+    with client() as c:
+        login(c)
+        assert c.get("/api/me").status_code == 200
+        r = c.post("/api/logout")
+        assert r.status_code == 200
+        assert c.get("/api/me").status_code == 401
+
+
 def test_schedule_question_returns_grounded_evidence():
     with client() as c:
-        r = c.post("/api/chat", data={"message": "Why is route 18 delayed?", "role": "dispatcher"})
+        login(c, "dispatcher")
+        r = c.post("/api/chat", data={"message": "Why is route 18 delayed?"})
         assert r.status_code == 200
         body = r.json()
         assert "schedule_lookup" in body["intent"]
@@ -38,9 +93,10 @@ def test_schedule_question_returns_grounded_evidence():
 
 def test_sop_question_hits_vector_index():
     with client() as c:
+        login(c, "driver")
         r = c.post(
             "/api/chat",
-            data={"message": "What is the approved procedure for a vehicle breakdown?", "role": "driver"},
+            data={"message": "What is the approved procedure for a vehicle breakdown?"},
         )
         body = r.json()
         sop = next(e for e in body["evidence"] if e["kind"] == "document")
@@ -50,11 +106,13 @@ def test_sop_question_hits_vector_index():
 
 def test_role_scoping_blocks_driver_fleet_access():
     with client() as c:
+        login(c, "driver")
         r = c.post(
             "/api/chat",
-            data={"message": "Which drivers are available for standby cover?", "role": "driver"},
+            data={"message": "Which drivers are available for standby cover?"},
         )
         body = r.json()
+        assert body["role"] == "driver"
         # fleet_status is intent-matched but not permitted for drivers
         assert "fleet_status" in body["intent"]
         assert all(e["source"] != "fleet_service" for e in body["evidence"])
@@ -63,16 +121,14 @@ def test_role_scoping_blocks_driver_fleet_access():
 
 def test_overview_scopes_drivers_by_role():
     with client() as c:
-        full = c.get("/api/overview", params={"role": "dispatcher"}).json()
+        login(c, "dispatcher")
+        full = c.get("/api/overview").json()
         assert full["trips"] and full["vehicles"] and full["drivers"]
-        scoped = c.get("/api/overview", params={"role": "driver"}).json()
-        assert scoped["drivers"] == []
 
-
-def test_unknown_role_falls_back_to_default():
     with client() as c:
-        r = c.post("/api/chat", data={"message": "next trips on route 12", "role": "hacker"})
-        assert r.json()["role"] == "dispatcher"
+        login(c, "driver")
+        scoped = c.get("/api/overview").json()
+        assert scoped["drivers"] == []
 
 
 def test_conversation_history_reaches_llm():
@@ -81,18 +137,20 @@ def test_conversation_history_reaches_llm():
         '{"role":"assistant","content":"Road works, +20 min."}]'
     )
     with client() as c:
+        login(c, "dispatcher")
         r = c.post(
             "/api/chat",
-            data={"message": "What about route 12?", "role": "dispatcher", "history": history},
+            data={"message": "What about route 12?", "history": history},
         )
         assert "2 prior message(s)" in r.json()["answer"]  # stub echoes history length
 
 
 def test_malformed_history_is_ignored():
     with client() as c:
+        login(c, "dispatcher")
         r = c.post(
             "/api/chat",
-            data={"message": "next trips", "role": "dispatcher", "history": '{"role":"system"}'},
+            data={"message": "next trips", "history": '{"role":"system"}'},
         )
         assert r.status_code == 200
         assert "0 prior message(s)" in r.json()["answer"]
@@ -124,9 +182,10 @@ def test_video_upload_extracts_frames(tmp_path):
     w.release()
 
     with client() as c, path.open("rb") as f:
+        login(c, "dispatcher")
         r = c.post(
             "/api/chat",
-            data={"message": "What does this clip show about the vehicle?", "role": "dispatcher"},
+            data={"message": "What does this clip show about the vehicle?"},
             files={"files": ("clip.mp4", f, "video/mp4")},
         )
     body = r.json()
