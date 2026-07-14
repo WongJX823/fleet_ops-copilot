@@ -12,6 +12,7 @@ from ..models import ChatResponse, Evidence
 from ..rag.index import SopIndex
 from ..tools import registry
 from . import confidence as confidence_scoring
+from . import diagnosis
 from . import precedence
 from .intent import IntentClassifier
 from .llm import LLMClient
@@ -48,9 +49,21 @@ class Orchestrator:
                 continue
             evidence.append(self.tools[tool_name](question, role))
 
-        stale = [e.source for e in evidence if not e.fresh]
-        conflicts = precedence.detect_conflicts(evidence)
-        score = confidence_scoring.score(evidence, intents, allowed, intent_mode, conflicts=bool(conflicts))
+        # Guided incident diagnosis (Phase 3): needs roster data, so it runs
+        # only for roles that may use fleet_status; drivers still get their
+        # driver-facing SOP steps through sop_search.
+        scenario = diagnosis.detect_scenario(question)
+        if scenario and "fleet_status" in allowed:
+            evidence.append(diagnosis.run(scenario, question))
+            intents.append(f"diagnosis:{scenario}")
+
+        # Confidence is scored on retrieved tool evidence only: the diagnosis
+        # block is derived from that same data (and always 'fresh'), so letting
+        # it count would inflate coverage and dilute staleness signals.
+        tool_evidence = [e for e in evidence if e.kind != "diagnosis"]
+        stale = [e.source for e in tool_evidence if not e.fresh]
+        conflicts = precedence.detect_conflicts(tool_evidence)
+        score = confidence_scoring.score(tool_evidence, intents, allowed, intent_mode, conflicts=bool(conflicts))
         escalated = score < CONFIDENCE_ESCALATION_THRESHOLD or bool(conflicts)
         if stale:
             notes.append(f"Evidence from {', '.join(stale)} exceeded the freshness limit.")

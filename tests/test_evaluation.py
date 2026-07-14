@@ -58,7 +58,10 @@ def test_normal_schedule_question():
         login(c, "dispatcher")
         r = c.post("/api/chat", data={"message": "Why is route 18 delayed?"})
         body = r.json()
-        assert body["intent"] == ["schedule_lookup"]
+        # schedule tool routed; a diagnosis:delay block may accompany it now
+        # that delay questions trigger the SOP-02 guided checklist (Phase 3)
+        assert body["intent"][0] == "schedule_lookup"
+        assert all(i == "schedule_lookup" or i.startswith("diagnosis:") for i in body["intent"])
         assert any(e["source"] == "schedule_service" and e["fresh"] for e in body["evidence"])
         assert body["escalated"] is False
 

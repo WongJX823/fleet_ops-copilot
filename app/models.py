@@ -8,7 +8,7 @@ class Evidence(BaseModel):
     """One retrieved fact with provenance, per the report's grounding rule (FR-02)."""
 
     source: str          # e.g. "schedule_service", "sop:vehicle_breakdown.md"
-    kind: str            # "live" | "document"
+    kind: str            # "live" | "document" | "diagnosis"
     observed_at: datetime
     fresh: bool
     summary: str         # short human-readable description shown in the UI

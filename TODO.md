@@ -30,7 +30,7 @@ Update checkboxes as items land.
 
 - [x] Confidence scoring on answers; escalate below threshold (FR-08)
 - [x] Stale-data simulation + source-precedence rules when sources conflict (FR-05)
-- [ ] Incident diagnosis flows for the three pilot scenarios (breakdown, delay, driver unavailable)
+- [x] Incident diagnosis flows for the three pilot scenarios (breakdown, delay, driver unavailable)
 - [x] Escalation handoff: package conversation + evidence for a human operator
 
 ## Phase 4 — approved actions (write tools)

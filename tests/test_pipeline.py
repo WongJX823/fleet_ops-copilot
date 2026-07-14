@@ -253,3 +253,67 @@ def test_escalation_ids_are_validated():
         login(c, "manager")
         assert c.get("/api/escalations/../../etc/passwd").status_code in (404, 422)
         assert c.get("/api/escalations/ESC-99999999-000000-ffff").status_code == 404
+
+
+def test_scenario_detection():
+    from app.agent.diagnosis import detect_scenario
+
+    assert detect_scenario("Vehicle V-105 broke down on route 7, what now?") == "breakdown"
+    assert detect_scenario("The driver is sick and cannot take trip T-0701") == "driver_unavailable"
+    assert detect_scenario("How should we handle the delay on route 18?") == "delay"
+    assert detect_scenario("Show me the next departures on route 12") is None
+    # breakdown wins over delay when both are mentioned
+    assert detect_scenario("Trip delayed because the bus broke down") == "breakdown"
+
+
+def test_breakdown_diagnosis_runs_sop_checklist():
+    with client() as c:
+        login(c, "dispatcher")
+        r = c.post("/api/chat", data={"message": "Vehicle V-105 broke down, what should we do?"})
+        body = r.json()
+        assert "diagnosis:breakdown" in body["intent"]
+        diag = next(e for e in body["evidence"] if e["kind"] == "diagnosis")
+        p = diag["payload"]
+        assert p["scenario"] == "breakdown"
+        assert "SOP-01" in p["sop"]
+        step_names = [st["step"] for st in p["steps"]]
+        assert any("replacement" in n.lower() for n in step_names)
+        assert any("standby" in n.lower() for n in step_names)
+        assert p["recommendation"]
+        assert "approval" in p["approval_rule"].lower()
+
+
+def test_delay_diagnosis_applies_thresholds():
+    with client() as c:
+        login(c, "dispatcher")
+        r = c.post("/api/chat", data={"message": "How should we handle the delays right now?"})
+        body = r.json()
+        diag = next(e for e in body["evidence"] if e["kind"] == "diagnosis")
+        p = diag["payload"]
+        assert p["scenario"] == "delay"
+        assert "SOP-02" in p["sop"]
+        assert any("thresholds" in st["step"].lower() for st in p["steps"])
+
+
+def test_driver_unavailable_diagnosis_checks_standby_cover():
+    with client() as c:
+        login(c, "dispatcher")
+        r = c.post("/api/chat", data={"message": "Driver D-03 is sick and cannot take trip T-1801, what now?"})
+        body = r.json()
+        diag = next(e for e in body["evidence"] if e["kind"] == "diagnosis")
+        p = diag["payload"]
+        assert p["scenario"] == "driver_unavailable"
+        assert "SOP-03" in p["sop"]
+        assert any("hours-of-service" in st["step"].lower() for st in p["steps"])
+        assert p["recommendation"]
+
+
+def test_driver_role_gets_no_diagnosis_block():
+    with client() as c:
+        login(c, "driver")
+        r = c.post("/api/chat", data={"message": "My vehicle broke down, what is the procedure?"})
+        body = r.json()
+        # diagnosis needs roster data (fleet_status), which drivers may not use;
+        # they still get the driver-facing SOP passages instead
+        assert all(e["kind"] != "diagnosis" for e in body["evidence"])
+        assert any(e["kind"] == "document" for e in body["evidence"])
