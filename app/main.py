@@ -48,6 +48,10 @@ async def health() -> dict:
         "intent_mode": orchestrator.classifier.mode if orchestrator else None,
         "llm": orchestrator.llm.model if orchestrator else None,
         "data_date": app.state.sim_date,
+        "connectors": {
+            **get_store().connector_status(),
+            "incident": {"mode": actions._incident_conn().mode, "error": None},
+        },
     }
 
 
@@ -138,6 +142,8 @@ async def approve_action(prop_id: str, user: User = Depends(get_current_user)) -
         raise HTTPException(403, f"Role '{user.role}' may not approve this action")
     if outcome == "rejected_previously":
         raise HTTPException(409, "This proposal was already rejected")
+    if outcome == "failed":
+        raise HTTPException(502, "The target system rejected or did not answer; the proposal remains open for retry")
     return {"outcome": outcome, "action": actions.summary(record, user.role)}
 
 

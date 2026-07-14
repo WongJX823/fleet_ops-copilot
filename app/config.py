@@ -35,6 +35,19 @@ FRESHNESS_LIMIT_MINUTES = 10
 SCHEDULE_LAG_MINUTES = int(os.getenv("SCHEDULE_LAG_MINUTES", "0"))
 FLEET_LAG_MINUTES = int(os.getenv("FLEET_LAG_MINUTES", "0"))
 
+# --- System connectors (report Section 9) ---------------------------------
+# Each source uses the mock day-simulation by default. Set a URL to swap that
+# source to a real HTTP API (see app/connectors/http.py for the contract);
+# tools/demo_external_api.py provides a reference implementation to test
+# against. Sources are independent: you can run schedule over HTTP while
+# fleet stays mock.
+SCHEDULE_API_URL = os.getenv("SCHEDULE_API_URL", "")
+FLEET_API_URL = os.getenv("FLEET_API_URL", "")
+INCIDENT_API_URL = os.getenv("INCIDENT_API_URL", "")
+EXTERNAL_API_KEY = os.getenv("EXTERNAL_API_KEY", "")     # sent as Bearer token
+CONNECTOR_TIMEOUT_SECONDS = float(os.getenv("CONNECTOR_TIMEOUT_SECONDS", "5"))
+CONNECTOR_TTL_SECONDS = float(os.getenv("CONNECTOR_TTL_SECONDS", "30"))
+
 # Answers scoring below this (0.0-1.0, see app/agent/confidence.py) escalate
 # to a human rather than being presented as a confident answer (FR-08).
 CONFIDENCE_ESCALATION_THRESHOLD = float(os.getenv("CONFIDENCE_ESCALATION_THRESHOLD", "0.5"))

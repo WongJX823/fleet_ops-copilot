@@ -22,11 +22,13 @@ import re
 import secrets
 from datetime import datetime, timezone
 
+from .. import connectors
 from ..audit import record as audit
 from ..config import RUNTIME_DIR
+from ..connectors.base import ConnectorError
+from ..connectors.mock import INCIDENT_DIR  # noqa: F401  (re-export; tests and callers use it)
 
 ACTION_DIR = RUNTIME_DIR / "actions"
-INCIDENT_DIR = RUNTIME_DIR / "incidents"
 NOTICE_FILE = RUNTIME_DIR / "notices.log.jsonl"
 
 _ID_RE = re.compile(r"^ACT-[0-9]{8}-[0-9]{6}-[0-9a-f]{4}$")
@@ -44,6 +46,16 @@ ROLLBACK_NOTES = {
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+_INCIDENT_CONN = None
+
+
+def _incident_conn():
+    global _INCIDENT_CONN
+    if _INCIDENT_CONN is None:
+        _INCIDENT_CONN = connectors.incident_connector()
+    return _INCIDENT_CONN
 
 
 # ------------------------------------------------------------- proposals
@@ -166,7 +178,14 @@ def approve(prop_id: str, approver: dict) -> tuple[dict | None, str]:
         return record, "rejected_previously"
 
     executor = {"create_incident_ticket": _exec_incident, "publish_delay_notice": _exec_notice}[record["type"]]
-    receipt = executor(record)
+    try:
+        receipt = executor(record)
+    except ConnectorError as e:
+        # The external system failed: the proposal stays open so it can be
+        # retried, and nothing is marked executed (no phantom receipts).
+        audit({"event": "action_failed", "action_id": prop_id, "type": record["type"],
+               "by": approver, "error": str(e)})
+        return record, "failed"
     receipt["rollback_note"] = record["rollback_note"]
     record.update(
         status="executed",
@@ -198,20 +217,8 @@ def reject(prop_id: str, user: dict, reason: str = "") -> tuple[dict | None, str
 
 # ------------------------------------------------------------- executors
 def _exec_incident(record: dict) -> dict:
-    INCIDENT_DIR.mkdir(parents=True, exist_ok=True)
-    now = _now()
-    ticket_id = f"INC-{now.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
-    ticket = {
-        "ticket_id": ticket_id,
-        "created_at": now.isoformat(),
-        "status": "open",
-        "source_action": record["id"],
-        **record["params"],
-    }
-    (INCIDENT_DIR / f"{ticket_id}.json").write_text(
-        json.dumps(ticket, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    return {"ticket_id": ticket_id, "created_at": ticket["created_at"]}
+    ticket = {"source_action": record["id"], **record["params"]}
+    return _incident_conn().create_ticket(ticket)
 
 
 def _exec_notice(record: dict) -> dict:
