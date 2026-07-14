@@ -28,6 +28,10 @@ SESSION_TTL_HOURS = 12
 # so in the demo this only trips if the process runs long.
 FRESHNESS_LIMIT_MINUTES = 10
 
+# Answers scoring below this (0.0-1.0, see app/agent/confidence.py) escalate
+# to a human rather than being presented as a confident answer (FR-08).
+CONFIDENCE_ESCALATION_THRESHOLD = float(os.getenv("CONFIDENCE_ESCALATION_THRESHOLD", "0.5"))
+
 # Roles and the tools each may call (FR-01, FR-03). Read-only MVP: no action tools.
 ROLE_TOOLS: dict[str, set[str]] = {
     "dispatcher": {"schedule_lookup", "fleet_status", "sop_search"},

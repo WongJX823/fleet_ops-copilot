@@ -16,6 +16,9 @@ this repo also contains the **Phase 2 read-only MVP** described in the report.
   signed session cookie server-side, not a client-editable dropdown — plus evidence
   chips with source + timestamp + freshness and an append-only audit log in
   `runtime/audit.log.jsonl`
+- Confidence scoring (coverage × freshness × grounding, discounted in keyword-fallback
+  mode) drives escalation — an answer built on partial, stale, or empty evidence
+  escalates to a human instead of being presented as confident (FR-08)
 - Read-only: the agent recommends actions and cites SOPs but cannot execute changes
 
 ## Quickstart
@@ -65,8 +68,10 @@ pytest
 | `app/main.py` | Channels & experience (Section 7) |
 | `app/auth.py` | Login/session auth — PBKDF2 password hashing, signed session cookies (FR-01) |
 | `app/agent/` | Agent orchestration: intent → tools → validate → pack → LLM (Section 8) |
+| `app/agent/confidence.py` | Confidence scoring + escalation threshold (FR-08) |
 | `app/tools/` | Governed operational tools over mock live systems (Section 9) |
 | `app/rag/` | Prepare phase: chunk → embed → vector index over SOPs |
 | `app/audit.py` | Audit trail (FR-07) |
 | `data/` | Mock schedule/fleet services, user directory, and SOP documents |
+| `tests/test_evaluation.py` | Evaluation set: normal, ambiguous, stale-data, and failure cases (report Section 16) |
 | `deliverables/` | Concept report (.docx) and design diagrams (.drawio) |

@@ -24,11 +24,11 @@ Update checkboxes as items land.
 - [x] Conversation memory: pass recent turns to the LLM so follow-up questions work
 - [x] Persist the SOP vector index to disk instead of re-embedding on every startup
 - [x] Real authentication (login/session) instead of the role dropdown
-- [ ] Evaluation set: normal, ambiguous, stale-data, and failure cases (report Section 16)
+- [x] Evaluation set: normal, ambiguous, stale-data, and failure cases (report Section 16)
 
 ## Phase 3 — guided resolution
 
-- [ ] Confidence scoring on answers; escalate below threshold (FR-08)
+- [x] Confidence scoring on answers; escalate below threshold (FR-08)
 - [ ] Stale-data simulation + source-precedence rules when sources conflict (FR-05)
 - [ ] Incident diagnosis flows for the three pilot scenarios (breakdown, delay, driver unavailable)
 - [ ] Escalation handoff: package conversation + evidence for a human operator

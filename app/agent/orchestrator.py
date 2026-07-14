@@ -6,10 +6,11 @@ This is the runtime half of the 'RAG + Tool Pipeline' diagram page.
 import json
 
 from ..audit import record
-from ..config import DEFAULT_ROLE, ROLE_TOOLS
+from ..config import CONFIDENCE_ESCALATION_THRESHOLD, DEFAULT_ROLE, ROLE_TOOLS
 from ..models import ChatResponse, Evidence
 from ..rag.index import SopIndex
 from ..tools import registry
+from . import confidence as confidence_scoring
 from .intent import IntentClassifier
 from .llm import LLMClient
 from .prompts import ANSWER_TEMPLATE
@@ -45,11 +46,17 @@ class Orchestrator:
             evidence.append(self.tools[tool_name](question, role))
 
         stale = [e.source for e in evidence if not e.fresh]
-        escalated = not evidence or bool(stale)
+        score = confidence_scoring.score(evidence, intents, allowed, intent_mode)
+        escalated = score < CONFIDENCE_ESCALATION_THRESHOLD
         if stale:
             notes.append(f"Evidence from {', '.join(stale)} exceeded the freshness limit.")
         if not evidence:
             notes.append("No permitted tool matched this question; escalate to a human operator.")
+        elif escalated:
+            notes.append(
+                f"Confidence {score:.2f} is below the escalation threshold "
+                f"({CONFIDENCE_ESCALATION_THRESHOLD}); recommend human review."
+            )
 
         packed = ANSWER_TEMPLATE.format(
             role=role,
@@ -69,6 +76,7 @@ class Orchestrator:
             role=role,
             evidence=evidence,
             model=self.llm.model,
+            confidence=score,
             escalated=escalated,
             notes=notes,
         )
@@ -83,6 +91,7 @@ class Orchestrator:
                 "stale_sources": stale,
                 "image_count": len(images),
                 "model": self.llm.model,
+                "confidence": score,
                 "escalated": escalated,
                 "answer_preview": answer[:200],
             }

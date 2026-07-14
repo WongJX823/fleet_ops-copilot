@@ -348,7 +348,7 @@ form.addEventListener('submit', async (e) => {
       ).join('') + '</div>';
     }
     for (const n of data.notes) html += `<div class="note">⚠ ${esc(n)}</div>`;
-    html += `<div class="meta">intent: ${data.intent.join(', ')} · role: ${data.role} · model: ${data.model}</div>`;
+    html += `<div class="meta">intent: ${data.intent.join(', ')} · role: ${data.role} · model: ${data.model} · confidence: ${Math.round(data.confidence * 100)}%</div>`;
     pending.innerHTML = html;
     if (data.escalated) pending.classList.add('escalated');
     transcript.push({role: 'assistant', content: data.answer});

@@ -21,5 +21,6 @@ class ChatResponse(BaseModel):
     role: str
     evidence: list[Evidence]
     model: str
+    confidence: float = 1.0
     escalated: bool = False
     notes: list[str] = []
