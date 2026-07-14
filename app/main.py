@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, Uploa
 from fastapi.responses import FileResponse
 
 from . import escalations
+from .tools import actions
 from .agent.llm import extract_video_frames
 from .agent.orchestrator import Orchestrator
 from .auth import COOKIE_NAME, SESSION_TTL_HOURS, User, create_session_token, get_current_user, verify_password
@@ -123,6 +124,38 @@ async def resolve_escalation(
     if record is None:
         raise HTTPException(404, "Escalation not found")
     return record
+
+
+@app.post("/api/actions/{prop_id}/approve")
+async def approve_action(prop_id: str, user: User = Depends(get_current_user)) -> dict:
+    """Approval gate (FR-06): executes the server-stored proposal exactly once;
+    re-approval returns the original receipt (idempotent)."""
+    approver = {"username": user.username, "name": user.name, "role": user.role}
+    record, outcome = actions.approve(prop_id, approver)
+    if outcome == "not_found":
+        raise HTTPException(404, "Action proposal not found")
+    if outcome == "forbidden":
+        raise HTTPException(403, f"Role '{user.role}' may not approve this action")
+    if outcome == "rejected_previously":
+        raise HTTPException(409, "This proposal was already rejected")
+    return {"outcome": outcome, "action": actions.summary(record, user.role)}
+
+
+@app.post("/api/actions/{prop_id}/reject")
+async def reject_action(
+    prop_id: str,
+    reason: str = Form(""),
+    user: User = Depends(get_current_user),
+) -> dict:
+    who = {"username": user.username, "name": user.name, "role": user.role}
+    record, outcome = actions.reject(prop_id, who, reason)
+    if outcome == "not_found":
+        raise HTTPException(404, "Action proposal not found")
+    if outcome == "forbidden":
+        raise HTTPException(403, f"Role '{user.role}' may not reject this action")
+    if outcome == "already_executed":
+        raise HTTPException(409, "This proposal was already executed")
+    return {"outcome": outcome, "action": actions.summary(record, user.role)}
 
 
 MAX_HISTORY_TURNS = 8

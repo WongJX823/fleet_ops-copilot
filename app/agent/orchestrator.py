@@ -10,7 +10,7 @@ from ..audit import record
 from ..config import CONFIDENCE_ESCALATION_THRESHOLD, DEFAULT_ROLE, ROLE_TOOLS
 from ..models import ChatResponse, Evidence
 from ..rag.index import SopIndex
-from ..tools import registry
+from ..tools import actions, registry
 from . import confidence as confidence_scoring
 from . import diagnosis
 from . import precedence
@@ -53,9 +53,14 @@ class Orchestrator:
         # only for roles that may use fleet_status; drivers still get their
         # driver-facing SOP steps through sop_search.
         scenario = diagnosis.detect_scenario(question)
+        proposals: list[dict] = []
         if scenario and "fleet_status" in allowed:
-            evidence.append(diagnosis.run(scenario, question))
+            diag = diagnosis.run(scenario, question)
+            evidence.append(diag)
             intents.append(f"diagnosis:{scenario}")
+            # Phase 4: derive action proposals from the computed checklist.
+            # Server-side records; the client can only reference them by id.
+            proposals = actions.propose_from_diagnosis(diag.payload, user, role)
 
         # Confidence is scored on retrieved tool evidence only: the diagnosis
         # block is derived from that same data (and always 'fresh'), so letting
@@ -117,6 +122,7 @@ class Orchestrator:
             confidence=score,
             escalated=escalated,
             escalation_id=escalation_id,
+            proposed_actions=[actions.summary(pr, role) for pr in proposals],
             notes=notes,
         )
         record(
@@ -133,6 +139,7 @@ class Orchestrator:
                 "confidence": score,
                 "escalated": escalated,
                 "escalation_id": escalation_id,
+                "proposed_actions": [pr["id"] for pr in proposals],
                 "answer_preview": answer[:200],
             }
         )

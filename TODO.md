@@ -35,10 +35,10 @@ Update checkboxes as items land.
 
 ## Phase 4 — approved actions (write tools)
 
-- [ ] Approval gate UI (proposed action → human confirms → execute → receipt)
-- [ ] First action tools: create incident ticket, publish delay notice
-- [ ] Idempotency keys + rollback notes on every action tool
-- [ ] Action entries in the audit log with approver identity
+- [x] Approval gate UI (proposed action → human confirms → execute → receipt)
+- [x] First action tools: create incident ticket, publish delay notice
+- [x] Idempotency keys + rollback notes on every action tool
+- [x] Action entries in the audit log with approver identity
 
 ## Phase 5 — scale & hardening
 

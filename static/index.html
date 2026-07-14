@@ -91,6 +91,20 @@
     #panel { border-right: none; border-bottom: 1px solid var(--line); }
   }
 
+  /* ---------- action approval cards ---------- */
+  .action-card { border: 1px solid var(--amber); background: var(--amber-bg); border-radius: 8px;
+                 padding: 8px 10px; margin-top: 8px; font-size: 12px; }
+  .action-card .meta { margin-top: 3px; }
+  .action-card .btns { margin-top: 6px; display: flex; gap: 6px; }
+  .act-approve { background: var(--green); color: #fff; border: none; border-radius: 6px;
+                 padding: 4px 12px; font-size: 11px; cursor: pointer; }
+  .act-reject  { background: #fff; color: var(--red); border: 1px solid var(--red); border-radius: 6px;
+                 padding: 4px 12px; font-size: 11px; cursor: pointer; }
+  .act-approve:disabled, .act-reject:disabled { opacity: .5; cursor: default; }
+  .receipt { margin-top: 6px; font-size: 11px; background: var(--green-bg); border: 1px solid var(--green);
+             border-radius: 6px; padding: 5px 8px; }
+  .receipt.rejected { background: var(--red-bg); border-color: var(--red); }
+
   /* ---------- escalations ---------- */
   .esc { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 11px; }
   .escq { color: #6b7a90; margin: 3px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -387,6 +401,17 @@ form.addEventListener('submit', async (e) => {
       ).join('') + '</div>';
     }
     if (data.escalation_id) html += `<div class="note">⚑ Escalated — handoff ${esc(data.escalation_id)} sent to the operator queue</div>`;
+    for (const a of (data.proposed_actions || [])) {
+      const params = Object.entries(a.params).map(([k, v]) => `${k}: ${String(v).slice(0, 60)}`).join(' · ');
+      html += `<div class="action-card" data-id="${esc(a.id)}">
+        <div><b>⚡ Proposed action:</b> ${esc(a.title)}</div>
+        <div class="meta">${esc(a.type)} · ${esc(a.sop_ref)} · ${esc(params)}</div>
+        <div class="btns">${a.can_approve
+          ? `<button class="act-approve">Approve &amp; execute</button><button class="act-reject">Reject</button>`
+          : `<span class="meta">Approval requires role: ${esc(a.allowed_roles.join(' or '))}</span>`}</div>
+        <div class="receiptbox"></div>
+      </div>`;
+    }
     for (const n of data.notes) html += `<div class="note">⚠ ${esc(n)}</div>`;
     html += `<div class="meta">intent: ${data.intent.join(', ')} · role: ${data.role} · model: ${data.model} · confidence: ${Math.round(data.confidence * 100)}%</div>`;
     pending.innerHTML = html;
@@ -399,6 +424,37 @@ form.addEventListener('submit', async (e) => {
   } finally {
     sendBtn.disabled = false;
     chat.scrollTop = chat.scrollHeight;
+  }
+});
+
+chat.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.act-approve, .act-reject');
+  if (!btn) return;
+  const card = btn.closest('.action-card');
+  const isApprove = btn.classList.contains('act-approve');
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const opts = { method: 'POST' };
+    if (!isApprove) {
+      const fd = new FormData();
+      fd.append('reason', 'Rejected from chat');
+      opts.body = fd;
+    }
+    const r = await fetch(`/api/actions/${card.dataset.id}/${isApprove ? 'approve' : 'reject'}`, opts);
+    const body = await r.json();
+    const box = card.querySelector('.receiptbox');
+    if (!r.ok) {
+      box.innerHTML = `<div class="receipt rejected">⚠ ${esc(body.detail || 'Request failed')}</div>`;
+      card.querySelectorAll('button').forEach(b => b.disabled = false);
+      return;
+    }
+    const a = body.action;
+    box.innerHTML = isApprove
+      ? `<div class="receipt">✔ Executed — receipt: ${esc(JSON.stringify(a.receipt))}<br>↩ ${esc(a.rollback_note)}</div>`
+      : `<div class="receipt rejected">✖ Rejected — recorded in the audit log</div>`;
+    card.querySelector('.btns').innerHTML = '';
+  } catch {
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
   }
 });
 

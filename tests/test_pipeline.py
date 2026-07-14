@@ -317,3 +317,100 @@ def test_driver_role_gets_no_diagnosis_block():
         # they still get the driver-facing SOP passages instead
         assert all(e["kind"] != "diagnosis" for e in body["evidence"])
         assert any(e["kind"] == "document" for e in body["evidence"])
+
+
+def _propose_breakdown(c):
+    r = c.post("/api/chat", data={"message": "Vehicle V-105 broke down, what should we do?"})
+    props = r.json()["proposed_actions"]
+    assert props, "breakdown diagnosis should propose an action"
+    return props[0]
+
+
+def test_breakdown_proposes_incident_ticket():
+    with client() as c:
+        login(c, "dispatcher")
+        prop = _propose_breakdown(c)
+        assert prop["type"] == "create_incident_ticket"
+        assert prop["status"] == "proposed"
+        assert prop["can_approve"] is True
+        assert "rollback" in prop["rollback_note"].lower() or "roll back" in prop["rollback_note"].lower()
+
+
+def test_approve_executes_once_and_is_idempotent():
+    with client() as c:
+        login(c, "dispatcher")
+        prop = _propose_breakdown(c)
+
+        r1 = c.post(f"/api/actions/{prop['id']}/approve")
+        assert r1.status_code == 200
+        b1 = r1.json()
+        assert b1["outcome"] == "executed"
+        ticket = b1["action"]["receipt"]["ticket_id"]
+        assert ticket.startswith("INC-")
+
+        # second approval returns the same receipt, no second ticket
+        r2 = c.post(f"/api/actions/{prop['id']}/approve")
+        assert r2.json()["outcome"] == "already_executed"
+        assert r2.json()["action"]["receipt"]["ticket_id"] == ticket
+
+        from app.tools.actions import INCIDENT_DIR
+        assert (INCIDENT_DIR / f"{ticket}.json").exists()
+
+
+def test_unauthorized_roles_cannot_approve():
+    with client() as c:
+        login(c, "dispatcher")
+        prop = _propose_breakdown(c)
+
+    with client() as c:
+        login(c, "planner")  # planner can see proposals but not approve
+        assert c.post(f"/api/actions/{prop['id']}/approve").status_code == 403
+
+
+def test_reject_blocks_later_approval():
+    with client() as c:
+        login(c, "manager")
+        prop = _propose_breakdown(c)
+        r = c.post(f"/api/actions/{prop['id']}/reject", data={"reason": "duplicate of existing ticket"})
+        assert r.status_code == 200
+        assert r.json()["outcome"] == "rejected"
+        # approving a rejected proposal is a conflict
+        assert c.post(f"/api/actions/{prop['id']}/approve").status_code == 409
+
+
+def test_unknown_or_malformed_action_ids():
+    with client() as c:
+        login(c, "manager")
+        assert c.post("/api/actions/ACT-99999999-000000-ffff/approve").status_code == 404
+        assert c.post("/api/actions/../evil/approve").status_code in (404, 422)
+
+
+def test_approval_is_audited_with_approver_identity():
+    import json as _json
+    from app.audit import AUDIT_FILE
+
+    with client() as c:
+        login(c, "manager")
+        prop = _propose_breakdown(c)
+        c.post(f"/api/actions/{prop['id']}/approve")
+
+    events = [_json.loads(l) for l in AUDIT_FILE.read_text(encoding="utf-8").splitlines()]
+    approved = [e for e in events if e.get("event") == "action_approved" and e.get("action_id") == prop["id"]]
+    assert approved and approved[0]["approved_by"]["username"] == "manager"
+
+
+def test_delay_proposals_from_synthetic_checklist():
+    from app.tools.actions import propose_from_diagnosis
+
+    payload = {
+        "scenario": "delay",
+        "sop": "SOP-02: Delay Management (delay_management.md)",
+        "steps": [
+            {"step": "Apply SOP-02 thresholds (<10 monitor / 10-29 notice / >=30 disruption)", "ok": True,
+             "result": "T-1801 (+15m): publish a delay notice at affected stops; T-0702 (+45m): treat as a disruption: open an incident"},
+        ],
+        "recommendation": "",
+    }
+    props = propose_from_diagnosis(payload, {"username": "t", "name": "t"}, "dispatcher")
+    types = {p["type"] for p in props}
+    assert types == {"publish_delay_notice", "create_incident_ticket"}

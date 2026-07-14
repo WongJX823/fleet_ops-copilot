@@ -24,4 +24,5 @@ class ChatResponse(BaseModel):
     confidence: float = 1.0
     escalated: bool = False
     escalation_id: str | None = None
+    proposed_actions: list[dict] = []
     notes: list[str] = []
