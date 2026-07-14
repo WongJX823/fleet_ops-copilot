@@ -28,6 +28,13 @@ SESSION_TTL_HOURS = 12
 # so in the demo this only trips if the process runs long.
 FRESHNESS_LIMIT_MINUTES = 10
 
+# Optional demo/debug knob: simulate a source falling behind without waiting on
+# wall-clock time. Minutes subtracted from that source's observed_at (FR-05).
+# Both default to 0 (no lag, current behavior) -- set e.g. SCHEDULE_LAG_MINUTES=15
+# in .env to see stale evidence and an escalation note.
+SCHEDULE_LAG_MINUTES = int(os.getenv("SCHEDULE_LAG_MINUTES", "0"))
+FLEET_LAG_MINUTES = int(os.getenv("FLEET_LAG_MINUTES", "0"))
+
 # Answers scoring below this (0.0-1.0, see app/agent/confidence.py) escalate
 # to a human rather than being presented as a confident answer (FR-08).
 CONFIDENCE_ESCALATION_THRESHOLD = float(os.getenv("CONFIDENCE_ESCALATION_THRESHOLD", "0.5"))

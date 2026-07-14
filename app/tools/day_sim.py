@@ -103,7 +103,17 @@ def _simulate_next_day(prev: dict) -> dict:
 
     available_vehicles = [v["vehicle_id"] for v in vehicles if v["status"] != "maintenance"]
     active_drivers = [d["driver_id"] for d in drivers if d["status"] in ("on_duty", "standby")]
-    for t in trips:
+    # ~15% of days, one trip keeps its previous vehicle/driver link instead of
+    # being reassigned -- models the schedule service lagging a same-day fleet
+    # or roster change. That lag is what can surface a genuine cross-source
+    # conflict (FR-05, see app/agent/precedence.py) instead of reassignment
+    # always keeping schedule and fleet data in sync by construction.
+    stale_idx = -1
+    if trips and rng.random() < 0.15:
+        stale_idx = rng.randrange(len(trips))
+    for i, t in enumerate(trips):
+        if i == stale_idx:
+            continue
         if available_vehicles:
             t["vehicle_id"] = rng.choice(available_vehicles)
         if active_drivers:

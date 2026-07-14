@@ -29,7 +29,7 @@ Update checkboxes as items land.
 ## Phase 3 — guided resolution
 
 - [x] Confidence scoring on answers; escalate below threshold (FR-08)
-- [ ] Stale-data simulation + source-precedence rules when sources conflict (FR-05)
+- [x] Stale-data simulation + source-precedence rules when sources conflict (FR-05)
 - [ ] Incident diagnosis flows for the three pilot scenarios (breakdown, delay, driver unavailable)
 - [ ] Escalation handoff: package conversation + evidence for a human operator
 

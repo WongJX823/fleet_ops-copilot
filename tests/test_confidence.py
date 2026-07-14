@@ -91,3 +91,13 @@ def test_score_is_clamped_to_zero_one_range():
     intents = ["schedule_lookup"]
     assert 0.0 <= confidence.score([_evidence()], intents, allowed, "llm") <= 1.0
     assert 0.0 <= confidence.score([], intents, allowed, "llm") <= 1.0
+
+
+def test_conflicts_cap_the_score_even_with_perfect_other_signals():
+    """FR-05: a detected cross-source conflict pulls confidence down even
+    when coverage/freshness/grounding/mode are all otherwise perfect."""
+    allowed = {"schedule_lookup", "fleet_status"}
+    intents = ["schedule_lookup", "fleet_status"]
+    evidence = [_evidence(), _evidence()]
+    score = confidence.score(evidence, intents, allowed, "llm", conflicts=True)
+    assert score == confidence.CONFLICT_FACTOR

@@ -11,6 +11,7 @@ from ..models import ChatResponse, Evidence
 from ..rag.index import SopIndex
 from ..tools import registry
 from . import confidence as confidence_scoring
+from . import precedence
 from .intent import IntentClassifier
 from .llm import LLMClient
 from .prompts import ANSWER_TEMPLATE
@@ -46,10 +47,13 @@ class Orchestrator:
             evidence.append(self.tools[tool_name](question, role))
 
         stale = [e.source for e in evidence if not e.fresh]
-        score = confidence_scoring.score(evidence, intents, allowed, intent_mode)
-        escalated = score < CONFIDENCE_ESCALATION_THRESHOLD
+        conflicts = precedence.detect_conflicts(evidence)
+        score = confidence_scoring.score(evidence, intents, allowed, intent_mode, conflicts=bool(conflicts))
+        escalated = score < CONFIDENCE_ESCALATION_THRESHOLD or bool(conflicts)
         if stale:
             notes.append(f"Evidence from {', '.join(stale)} exceeded the freshness limit.")
+        if conflicts:
+            notes.extend(conflicts)
         if not evidence:
             notes.append("No permitted tool matched this question; escalate to a human operator.")
         elif escalated:

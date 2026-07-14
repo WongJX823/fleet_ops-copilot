@@ -9,12 +9,15 @@ real API clients in later phases.
 """
 from datetime import datetime, timedelta, timezone
 
+from ..config import FLEET_LAG_MINUTES, SCHEDULE_LAG_MINUTES
 from . import day_sim
 
 
 class DataStore:
     def __init__(self) -> None:
         self.loaded_at = datetime.now(timezone.utc)
+        self.schedule_observed_at = self.loaded_at - timedelta(minutes=SCHEDULE_LAG_MINUTES)
+        self.fleet_observed_at = self.loaded_at - timedelta(minutes=FLEET_LAG_MINUTES)
         state = day_sim.ensure_current_day()
         self.sim_date = state["date"]
 

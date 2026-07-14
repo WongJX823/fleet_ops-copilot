@@ -61,6 +61,10 @@ Run tests (offline, no key needed):
 pytest
 ```
 
+To see stale-evidence handling without waiting on wall-clock time, set
+`SCHEDULE_LAG_MINUTES=15` or `FLEET_LAG_MINUTES=15` in `.env` and restart —
+that source's evidence renders as stale and the answer escalates (FR-05).
+
 ## Structure
 
 | Path | Report section |
@@ -69,6 +73,7 @@ pytest
 | `app/auth.py` | Login/session auth — PBKDF2 password hashing, signed session cookies (FR-01) |
 | `app/agent/` | Agent orchestration: intent → tools → validate → pack → LLM (Section 8) |
 | `app/agent/confidence.py` | Confidence scoring + escalation threshold (FR-08) |
+| `app/agent/precedence.py` | Cross-source conflict detection + source precedence (FR-05) |
 | `app/tools/` | Governed operational tools over mock live systems (Section 9) |
 | `app/rag/` | Prepare phase: chunk → embed → vector index over SOPs |
 | `app/audit.py` | Audit trail (FR-07) |

@@ -27,7 +27,7 @@ def schedule_lookup(query: str, role: str) -> Evidence:
     return _evidence(
         source="schedule_service",
         kind="live",
-        observed_at=store.loaded_at,
+        observed_at=store.schedule_observed_at,
         summary=f"{len(trips)} trip(s) from the schedule service",
         payload={"trips": trips},
     )
@@ -42,7 +42,7 @@ def fleet_status(query: str, role: str) -> Evidence:
     return _evidence(
         source="fleet_service",
         kind="live",
-        observed_at=store.loaded_at,
+        observed_at=store.fleet_observed_at,
         summary=f"{len(store.vehicles)} vehicles"
         + ("" if role == "driver" else f", {len(store.drivers)} drivers"),
         payload=payload,

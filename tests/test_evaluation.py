@@ -190,6 +190,47 @@ def test_multiple_stale_sources_named_in_one_note(monkeypatch):
         assert body["escalated"] is True
 
 
+# ------------------------------------------------------------ conflicting ---
+
+
+def test_conflicting_sources_flagged_and_escalates(monkeypatch):
+    """FR-05: schedule and fleet disagree about whether a trip can run ->
+    a source-precedence conflict note is surfaced and the answer escalates,
+    regardless of what the confidence score alone would have decided."""
+    import app.tools.registry as registry
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+
+    class FakeStore:
+        loaded_at = now
+        schedule_observed_at = now
+        fleet_observed_at = now
+        trips = [
+            {
+                "trip_id": "T-1", "route": "12", "origin": "A", "destination": "B",
+                "status": "on_time", "delay_min": 0, "vehicle_id": "V-1", "driver_id": "D-1",
+            }
+        ]
+        vehicles = [
+            {"vehicle_id": "V-1", "type": "bus_12m", "status": "maintenance", "location": "Depot"}
+        ]
+        drivers = [
+            {"driver_id": "D-1", "name": "T. Test", "status": "on_duty", "shift_end": now.isoformat()}
+        ]
+
+    monkeypatch.setattr(registry, "get_store", lambda: FakeStore())
+    with client() as c:
+        login(c, "dispatcher")
+        r = c.post(
+            "/api/chat",
+            data={"message": "What is the current status of route 12 and available vehicles?"},
+        )
+        body = r.json()
+        assert any("Conflict" in n and "T-1" in n for n in body["notes"])
+        assert body["escalated"] is True
+
+
 # ---------------------------------------------------------------- failure ---
 
 
