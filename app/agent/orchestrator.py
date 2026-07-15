@@ -14,6 +14,7 @@ from ..tools import actions, registry
 from . import confidence as confidence_scoring
 from . import diagnosis
 from . import precedence
+from . import sanitize
 from .intent import IntentClassifier
 from .llm import LLMClient
 from .prompts import ANSWER_TEMPLATE
@@ -62,6 +63,16 @@ class Orchestrator:
             # Server-side records; the client can only reference them by id.
             proposals = actions.propose_from_diagnosis(diag.payload, user, role)
 
+        # Prompt-injection defense (Section 10): retrieved content is data,
+        # not instructions. Scrub it before it reaches the prompt; anything
+        # neutralized is surfaced, escalated, and audited.
+        evidence, injection_findings = sanitize.scrub_evidence(evidence)
+        if injection_findings:
+            notes.append(
+                "Injection defense: suspicious content was neutralized in retrieved data ("
+                + "; ".join(injection_findings) + ")"
+            )
+
         # Confidence is scored on retrieved tool evidence only: the diagnosis
         # block is derived from that same data (and always 'fresh'), so letting
         # it count would inflate coverage and dilute staleness signals.
@@ -69,7 +80,7 @@ class Orchestrator:
         stale = [e.source for e in tool_evidence if not e.fresh]
         conflicts = precedence.detect_conflicts(tool_evidence)
         score = confidence_scoring.score(tool_evidence, intents, allowed, intent_mode, conflicts=bool(conflicts))
-        escalated = score < CONFIDENCE_ESCALATION_THRESHOLD or bool(conflicts)
+        escalated = score < CONFIDENCE_ESCALATION_THRESHOLD or bool(conflicts) or bool(injection_findings)
         if stale:
             notes.append(f"Evidence from {', '.join(stale)} exceeded the freshness limit.")
         if conflicts:
@@ -138,6 +149,7 @@ class Orchestrator:
                 "model": self.llm.model,
                 "confidence": score,
                 "escalated": escalated,
+                "injection_findings": injection_findings,
                 "escalation_id": escalation_id,
                 "proposed_actions": [pr["id"] for pr in proposals],
                 "answer_preview": answer[:200],

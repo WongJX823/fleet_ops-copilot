@@ -43,7 +43,7 @@ Update checkboxes as items land.
 ## Phase 5 — scale & hardening
 
 - [x] Swap mock datastore for real system connectors (schedule, fleet, incident APIs; mock stays the zero-config default)
-- [ ] Prompt-injection defenses on retrieved documents (report Section 10)
+- [x] Prompt-injection defenses on retrieved documents and live feeds (report Section 10)
 - [ ] Observability: request metrics, tool latency, token cost per answer (Section 13 metrics)
 - [ ] Rate limiting + API gateway auth in front of the service
 - [ ] Multi-tenant / depot boundaries if needed

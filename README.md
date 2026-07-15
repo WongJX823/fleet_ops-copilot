@@ -102,6 +102,7 @@ silently presenting dead data (Section 11: graceful degradation).
 | `app/agent/confidence.py` | Confidence scoring + escalation threshold (FR-08) |
 | `app/agent/precedence.py` | Cross-source conflict detection + source precedence (FR-05) |
 | `app/agent/diagnosis.py` | SOP-guided incident diagnosis flows (Phase 3) |
+| `app/agent/sanitize.py` | Prompt-injection defenses on retrieved content (Section 10) |
 | `app/escalations.py` | Escalation handoff queue for human operators (FR-08) |
 | `app/tools/` | Governed operational tools over mock live systems (Section 9) |
 | `app/tools/actions.py` | Approval-gated write actions with idempotency + rollback notes (FR-06) |
