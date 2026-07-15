@@ -1,12 +1,17 @@
-"""Fleet Ops Copilot - read-only MVP API.
+"""Fleet Ops Copilot API.
 
 Run:  uvicorn app.main:app --reload
 Then open http://127.0.0.1:8000
 """
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
+
+from . import config
+from .observability import metrics
+from .ratelimit import RateLimiter
 
 from . import escalations
 from .tools import actions
@@ -34,6 +39,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Fleet Ops Copilot", lifespan=lifespan)
 
+LOGIN_LIMITER = RateLimiter(config.RATE_LIMIT_LOGIN_PER_MINUTE, 60)
+CHAT_LIMITER = RateLimiter(config.RATE_LIMIT_CHAT_PER_MINUTE, 60)
+
+
+@app.middleware("http")
+async def gateway_auth_and_metrics(request: Request, call_next):
+    """Optional gateway shared-key check plus per-route request metrics."""
+    if request.url.path.startswith("/api/") and config.GATEWAY_API_KEY:
+        if request.headers.get("X-Gateway-Key") != config.GATEWAY_API_KEY:
+            metrics.record_request(f"{request.method} {request.url.path}", 401, 0.0)
+            return JSONResponse({"detail": "Missing or invalid gateway key"}, status_code=401)
+    t0 = time.perf_counter()
+    response = await call_next(request)
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", request.url.path)  # template path, not raw ids
+    metrics.record_request(f"{request.method} {route_path}", response.status_code, (time.perf_counter() - t0) * 1000)
+    return response
+
 
 @app.get("/")
 async def home() -> FileResponse:
@@ -55,8 +78,20 @@ async def health() -> dict:
     }
 
 
+@app.get("/api/metrics")
+async def get_metrics(user: User = Depends(get_current_user)) -> dict:
+    """Service metrics (Section 13). Manager only."""
+    if user.role != "manager":
+        raise HTTPException(403, "Only managers can view service metrics")
+    return metrics.snapshot()
+
+
 @app.post("/api/login")
-async def login(response: Response, username: str = Form(...), password: str = Form(...)) -> dict:
+async def login(request: Request, response: Response, username: str = Form(...), password: str = Form(...)) -> dict:
+    client_ip = request.client.host if request.client else "unknown"
+    if not LOGIN_LIMITER.allow(client_ip):
+        metrics.record_rate_limited()
+        raise HTTPException(429, "Too many login attempts; wait a minute and try again")
     user = verify_password(username, password)
     if user is None:
         raise HTTPException(401, "Invalid username or password")
@@ -196,6 +231,9 @@ async def chat(
 ) -> ChatResponse:
     if not message.strip():
         raise HTTPException(400, "Empty message")
+    if not CHAT_LIMITER.allow(user.username):
+        metrics.record_rate_limited()
+        raise HTTPException(429, "Chat rate limit reached; wait a minute and try again")
 
     images: list[tuple[str, bytes]] = []
     notes: list[str] = []

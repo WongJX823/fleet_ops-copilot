@@ -13,6 +13,7 @@ from .prompts import SYSTEM_PROMPT
 class LLMClient:
     def __init__(self) -> None:
         self.model = OPENAI_CHAT_MODEL if OPENAI_API_KEY else "stub"
+        self.last_usage = {"prompt_tokens": 0, "completion_tokens": 0}
         self._client = None
         if OPENAI_API_KEY:
             from openai import OpenAI
@@ -27,6 +28,7 @@ class LLMClient:
     ) -> str:
         """images: list of (mime_type, raw_bytes) already reduced to stills.
         history: prior turns as [{"role": "user"|"assistant", "content": str}]."""
+        self.last_usage = {"prompt_tokens": 0, "completion_tokens": 0}
         if self._client is None:
             return _stub_answer(packed_prompt, len(images), len(history or []))
 
@@ -44,6 +46,11 @@ class LLMClient:
             messages=messages,
             temperature=0.2,
         )
+        if resp.usage is not None:
+            self.last_usage = {
+                "prompt_tokens": resp.usage.prompt_tokens,
+                "completion_tokens": resp.usage.completion_tokens,
+            }
         return resp.choices[0].message.content or ""
 
 

@@ -4,11 +4,13 @@ validation -> prompt packing -> LLM -> audited response.
 This is the runtime half of the 'RAG + Tool Pipeline' diagram page.
 """
 import json
+import time
 
 from .. import escalations
 from ..audit import record
 from ..config import CONFIDENCE_ESCALATION_THRESHOLD, DEFAULT_ROLE, ROLE_TOOLS
 from ..models import ChatResponse, Evidence
+from ..observability import metrics
 from ..rag.index import SopIndex
 from ..tools import actions, registry
 from . import confidence as confidence_scoring
@@ -48,7 +50,9 @@ class Orchestrator:
             if tool_name not in allowed:
                 notes.append(f"Tool '{tool_name}' is not permitted for role '{role}'; skipped.")
                 continue
+            t0 = time.perf_counter()
             evidence.append(self.tools[tool_name](question, role))
+            metrics.record_tool(tool_name, (time.perf_counter() - t0) * 1000)
 
         # Guided incident diagnosis (Phase 3): needs roster data, so it runs
         # only for roles that may use fleet_status; drivers still get their
@@ -103,7 +107,11 @@ class Orchestrator:
         if notes:
             packed += "\n\nOperational notes (mention these to the user):\n- " + "\n- ".join(notes)
 
+        t0 = time.perf_counter()
         answer = self.llm.answer(packed, images, history)
+        llm_ms = (time.perf_counter() - t0) * 1000
+        usage = self.llm.last_usage
+        cost_usd = metrics.record_llm(self.llm.model, usage["prompt_tokens"], usage["completion_tokens"])
 
         escalation_id = None
         if escalated:
@@ -152,6 +160,9 @@ class Orchestrator:
                 "injection_findings": injection_findings,
                 "escalation_id": escalation_id,
                 "proposed_actions": [pr["id"] for pr in proposals],
+                "llm_ms": round(llm_ms, 1),
+                "tokens": usage,
+                "cost_usd": round(cost_usd, 6),
                 "answer_preview": answer[:200],
             }
         )

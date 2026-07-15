@@ -48,6 +48,15 @@ EXTERNAL_API_KEY = os.getenv("EXTERNAL_API_KEY", "")     # sent as Bearer token
 CONNECTOR_TIMEOUT_SECONDS = float(os.getenv("CONNECTOR_TIMEOUT_SECONDS", "5"))
 CONNECTOR_TTL_SECONDS = float(os.getenv("CONNECTOR_TTL_SECONDS", "30"))
 
+# --- Rate limiting & gateway (report Section 11) ---------------------------
+# In-app backstop limits (per minute). Login is keyed by client IP (brute-force
+# protection), chat by username (cost control). Set GATEWAY_API_KEY to require
+# an X-Gateway-Key header on every /api/* request -- for deployments where only
+# the API gateway may reach this service directly.
+RATE_LIMIT_LOGIN_PER_MINUTE = int(os.getenv("RATE_LIMIT_LOGIN_PER_MINUTE", "10"))
+RATE_LIMIT_CHAT_PER_MINUTE = int(os.getenv("RATE_LIMIT_CHAT_PER_MINUTE", "20"))
+GATEWAY_API_KEY = os.getenv("GATEWAY_API_KEY", "")
+
 # Answers scoring below this (0.0-1.0, see app/agent/confidence.py) escalate
 # to a human rather than being presented as a confident answer (FR-08).
 CONFIDENCE_ESCALATION_THRESHOLD = float(os.getenv("CONFIDENCE_ESCALATION_THRESHOLD", "0.5"))

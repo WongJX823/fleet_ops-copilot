@@ -44,9 +44,9 @@ Update checkboxes as items land.
 
 - [x] Swap mock datastore for real system connectors (schedule, fleet, incident APIs; mock stays the zero-config default)
 - [x] Prompt-injection defenses on retrieved documents and live feeds (report Section 10)
-- [ ] Observability: request metrics, tool latency, token cost per answer (Section 13 metrics)
-- [ ] Rate limiting + API gateway auth in front of the service
-- [ ] Multi-tenant / depot boundaries if needed
+- [x] Observability: request metrics, tool latency, token cost per answer (`/api/metrics`, manager only)
+- [x] Rate limiting (login per IP, chat per user) + optional gateway shared-key auth (`GATEWAY_API_KEY`)
+- [x] Multi-tenant / depot boundaries — evaluated, deliberately deferred: the pilot is a single-operator deployment; role scoping already bounds data access, and tenant boundaries belong with real connector rollout (decision noted in README)
 
 ## Housekeeping
 

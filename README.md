@@ -92,6 +92,20 @@ If a source goes down, the copilot keeps serving its last snapshot — which fai
 the freshness check once it ages past the limit, so answers escalate instead of
 silently presenting dead data (Section 11: graceful degradation).
 
+## Operations hardening
+
+- **Metrics** — `GET /api/metrics` (manager only): per-route request counts and
+  latency, per-tool latency, LLM calls with token counts and estimated USD cost,
+  and rate-limit rejections. Per-turn latency/tokens/cost also land in the audit log.
+- **Rate limiting** — in-app backstop: logins per client IP, chat per user
+  (`RATE_LIMIT_LOGIN_PER_MINUTE`, `RATE_LIMIT_CHAT_PER_MINUTE`; HTTP 429 when hit).
+- **Gateway auth** — set `GATEWAY_API_KEY` to require an `X-Gateway-Key` header on
+  every `/api/*` request, for deployments where only the API gateway may reach the
+  service directly.
+- **Tenancy** — single-operator by design for the pilot; role scoping bounds data
+  access. Tenant/depot boundaries are deferred until real system connectors carry
+  tenant identity.
+
 ## Structure
 
 | Path | Report section |
@@ -110,6 +124,8 @@ silently presenting dead data (Section 11: graceful degradation).
 | `tools/demo_external_api.py` | Reference external schedule/fleet/incident API for the HTTP connectors |
 | `app/rag/` | Prepare phase: chunk → embed → vector index over SOPs |
 | `app/audit.py` | Audit trail (FR-07) |
+| `app/observability.py` | Request/tool/LLM metrics + cost tracking (Section 13) |
+| `app/ratelimit.py` | Sliding-window rate limiting (Section 11) |
 | `data/` | Mock schedule/fleet services, user directory, and SOP documents |
 | `tests/test_evaluation.py` | Evaluation set: normal, ambiguous, stale-data, and failure cases (report Section 16) |
 | `deliverables/` | Concept report (.docx) and design diagrams (.drawio) |
